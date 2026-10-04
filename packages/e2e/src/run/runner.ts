@@ -44,6 +44,7 @@ import { outputLayout } from './output.ts';
 import { claimRerunDir, pruneArtifacts } from './artifacts.ts';
 import { carryForward, lastFailedIds, readLastRun, reportArtifactPaths, type RerunCollection } from './last-run.ts';
 import { childProcessSpawner } from './worker/handle.ts';
+import { registerStaticSecrets } from './secrecy.ts';
 import { setSecretRegistry } from '../secrets.ts';
 import { withAbort } from '../internal/time.ts';
 import type { BuiltinReporter, E2EConfig, FinishedRun, RecordingMode, Reporter, ReporterSummary } from '../types.ts';
@@ -562,6 +563,11 @@ export async function run(options: RunOptions = {}): Promise<RunOutcome> {
   vcs = await detectVcs(config.projectRoot, env);
 
   setSecretRegistry(config);
+  // Seed the runner process's ledger with the config's static secrets, the
+  // way each worker seeds its own: a run-level error serialized here before
+  // any session opens (a collection failure, a provisioning failure) redacts
+  // against the same values the worker would.
+  registerStaticSecrets(config.allSecrets);
   // Several run agents have no one model to name; each step names its own.
   // The judge is named only when it is a model of its own.
   const runAgent = config.agentNames.length === 1 ? config.agent : undefined;

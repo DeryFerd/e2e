@@ -3,7 +3,7 @@
 import type { ResolvedConfig } from '../config/resolve.ts';
 import { MIN_SECRET_LENGTH, secretLength } from '../config/secrets.ts';
 import type { TargetSession } from '../engine/surface.ts';
-import { ConfigurationError } from '../internal/errors.ts';
+import { ConfigurationError, setErrorRedactor } from '../internal/errors.ts';
 import { SecretLedger } from '../internal/redact.ts';
 import { unavailableCode } from '../secrets.ts';
 import type { Secret } from '../types.ts';
@@ -67,9 +67,14 @@ export function redactsRecordings(secrecy: SessionSecrecy): boolean {
  * Every secret value any session in this process has seen, for text the
  * process itself emits rather than a session: a test's console output leaves
  * the worker through here. Seeded with the static values as each session
- * learns them; provider-backed values join as they resolve.
+ * learns them; provider-backed values join as they resolve. It is also the
+ * redactor `serializeError` falls back to, so an error serialized on a path
+ * that forgot to thread its own redactor still cannot carry a secret into the
+ * report.
  */
 export const processSecrets = new SecretLedger();
+
+setErrorRedactor(processSecrets.redact);
 
 /** The static ledger of each secrets map, built once. */
 const staticLedgers = new WeakMap<ResolvedConfig['allSecrets'], SecretLedger>();
