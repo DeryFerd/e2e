@@ -67,14 +67,9 @@ export function redactsRecordings(secrecy: SessionSecrecy): boolean {
  * Every secret value any session in this process has seen, for text the
  * process itself emits rather than a session: a test's console output leaves
  * the worker through here. Seeded with the static values as each session
- * learns them; provider-backed values join as they resolve. It is also the
- * redactor `serializeError` falls back to, so an error serialized on a path
- * that forgot to thread its own redactor still cannot carry a secret into the
- * report.
+ * learns them; provider-backed values join as they resolve.
  */
 export const processSecrets = new SecretLedger();
-
-setErrorRedactor(processSecrets.redact);
 
 /** The static ledger of each secrets map, built once. */
 const staticLedgers = new WeakMap<ResolvedConfig['allSecrets'], SecretLedger>();
@@ -98,8 +93,9 @@ export function staticSecretLedger(secrets: ResolvedConfig['allSecrets']): Pick<
   return ledger;
 }
 
-/** Seeds `processSecrets` with the static values of `secrets`, so output before any session opens is covered too. */
+/** Seeds `processSecrets` with the static values of `secrets` and makes it `serializeError`'s default redactor, so output before any session opens is covered too. */
 export function registerStaticSecrets(secrets: ResolvedConfig['allSecrets']): void {
+  setErrorRedactor(processSecrets.redact);
   for (const [name, { value }] of secrets) {
     if (typeof value === 'string') processSecrets.register(name, value);
   }

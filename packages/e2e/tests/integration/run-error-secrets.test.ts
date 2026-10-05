@@ -1,10 +1,7 @@
 /**
- * A run-level error the runner records before any session opens — a test file
- * that throws while it is collected, an engine that fails to provision — has to
- * be redacted with the config's static secrets, not only with what a live
- * session has learned. The main runner process serializes these errors, and it
- * never opens a session first, so it must seed its own ledger the way a worker
- * seeds its own.
+ * A run-level error, such as a test file that throws while it is collected or
+ * a suite hook that fails, is redacted with the config's static secrets even
+ * when no session ever learned them.
  */
 
 import { describe, expect, it } from 'vitest';
@@ -37,16 +34,28 @@ throw new Error('the app echoed ${SECRET}');
 test('never runs', async () => {});
 `;
 
-describe('a run-level error recorded before any session opens', () => {
-  it('redacts the config secrets from a collection failure', async () => {
+const THROWS_IN_BEFORE_ALL = `import { test } from 'e2e';
+
+test.beforeAll(() => {
+  throw new Error('the app echoed ${SECRET}');
+});
+
+test('never runs', async () => {});
+`;
+
+describe('a run-level error', () => {
+  it.each([
+    ['a collection failure', THROWS_AT_COLLECTION],
+    ['a beforeAll failure', THROWS_IN_BEFORE_ALL],
+  ])('redacts the config secrets from %s', async (_name, source) => {
     const { outcome, project } = await runProjectWithConfigFile(
-      { 'tests/boom.e2e.ts': THROWS_AT_COLLECTION },
+      { 'tests/boom.e2e.ts': source },
       { appUrl: 'http://127.0.0.1:9/', configSource: CONFIG },
     );
     try {
       const messages = outcome.report.run.errors.map((error) => error.message).join('\n');
       expect(messages).toContain(MARKER);
-      expect(messages).not.toContain(SECRET);
+      expect(JSON.stringify(outcome.report)).not.toContain(SECRET);
     } finally {
       project.cleanup();
     }

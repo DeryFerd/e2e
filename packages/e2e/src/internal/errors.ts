@@ -15,14 +15,7 @@ export function errorMessage(cause: unknown): string {
   return cause instanceof Error ? cause.message : String(cause);
 }
 
-/**
- * The redactor `serializeError` falls back to when a call site gives none: the
- * process's live secret ledger, so an error serialized on a path that forgot to
- * thread its own redactor still cannot carry a secret into the report. A
- * `globalThis` slot rather than module state, so a project's copy of e2e reaches
- * the runner's redactor (`realm-slot.ts`); installed by `run/secrecy.ts`, where
- * the ledger lives.
- */
+/** The redactor `serializeError` falls back to, on `globalThis` so a project's copy of e2e shares it. */
 const redactorSlot = realmSlot<(text: string) => string>('e2e.error-redactor.v1');
 
 /** Installs the process-wide redactor `serializeError` uses when none is given; `undefined` clears it. */
@@ -390,10 +383,7 @@ export function serializeError(
     /**
      * Replaces secret values in the message, the details, and the stack: an
      * assertion that observed a secret on screen, or a message that quoted
-     * one, must not carry it into the report. When omitted, the process
-     * redactor installed by the runner is used (`setErrorRedactor`), so a call
-     * site that forgets one still cannot leak; with none installed it is
-     * identity.
+     * one, must not carry it into the report. Defaults to `setErrorRedactor`'s.
      */
     redact?: ((text: string) => string) | undefined;
   } = {},

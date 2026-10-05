@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { ResolvedConfig } from '../../src/config/resolve.ts';
 import type { TargetSession } from '../../src/engine/surface.ts';
 import { serializeError, TestError } from '../../src/internal/errors.ts';
-import { adoptSecrecy, carriedSecrecy, processSecrets, redactForSession, redactsRecordings, sessionSecrecy, staticSecretLedger } from '../../src/run/secrecy.ts';
+import { adoptSecrecy, carriedSecrecy, processSecrets, redactForSession, registerStaticSecrets, redactsRecordings, sessionSecrecy, staticSecretLedger } from '../../src/run/secrecy.ts';
 
 const STATIC_VALUE = 'static-config-password-5521';
 const PROVIDER_VALUE = 'provider-minted-token-8804';
@@ -79,8 +79,9 @@ describe('redaction before and after a session opens', () => {
     expect(ledger.entries()).toEqual([['password', STATIC_VALUE]]);
   });
 
-  it('installs the process ledger as the default redactor, so a serialized error carries no secret', () => {
+  it('makes the process ledger the default redactor once seeded, so a serialized error carries no secret', () => {
     const value = 'process-wide-ledger-value-3391';
+    registerStaticSecrets(secrets);
     processSecrets.register('token', value);
     const serialized = serializeError(new TestError('ASSERTION_FAILED', `the app echoed ${value}`));
     expect(serialized.message).toBe('the app echoed <secret:token>');

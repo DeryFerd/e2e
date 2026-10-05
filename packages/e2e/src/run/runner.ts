@@ -563,10 +563,7 @@ export async function run(options: RunOptions = {}): Promise<RunOutcome> {
   vcs = await detectVcs(config.projectRoot, env);
 
   setSecretRegistry(config);
-  // Seed the runner process's ledger with the config's static secrets, the
-  // way each worker seeds its own: a run-level error serialized here before
-  // any session opens (a collection failure, a provisioning failure) redacts
-  // against the same values the worker would.
+  // Run-level errors serialized here redact like a worker's.
   registerStaticSecrets(config.allSecrets);
   // Several run agents have no one model to name; each step names its own.
   // The judge is named only when it is a model of its own.
