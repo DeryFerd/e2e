@@ -69,11 +69,11 @@ suites that consume the built packages the way a user would.
 - `packages/mobile` — the published `@e2e-dev/mobile` package: the
   iOS/Android engine on agent-device, built with the same public
   `defineEngine`, contributing the `device` fixture. Like the web engine it
-  depends on `e2e` (peer), never the reverse, and imports from `e2e/engine`
-  only; a target names it as `engine: mobile()`. The `@e2e-dev/mobile/tools`
-  subpath holds the agent-side tool pack (opening another app, a free-form
-  swipe, typing into the focused field, system alerts) so the main entry never
-  loads the AI SDK.
+  depends on `e2e` (peer), never the reverse; the engine implementation
+  imports from `e2e/engine` only, and a target names it as `engine: mobile()`.
+  The `@e2e-dev/mobile/tools` subpath holds the agent-side `open_app`, `swipe`,
+  and `alert` tools; focused-field typing uses the engine's keyboard grammar.
+  The main entry never loads the AI SDK.
 - `packages/kernel` - the published `@e2e-dev/kernel` package: Kernel hosted
   browsers for the web engine. An official integration with a hosted service
   is one package per service, named after it (`@e2e-dev/<service>`), with the
