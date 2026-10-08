@@ -13,12 +13,27 @@ export interface FixturePage {
 export const FIXTURE_PAGES: readonly FixturePage[] = [
   {
     name: 'shadow section landmarks',
+    // Every shape `isPageLevel` scopes a header or footer to: the sectioning
+    // elements and the ARIA roles that stand for them, each nesting a
+    // header/footer two shadow roots deep, plus the page-level control.
     html: `
       <article><div id="article-shadow"></div></article>
-      <div role="region" aria-label="News"><div id="region-shadow"></div></div>
+      <aside><div id="aside-shadow"></div></aside>
+      <main><div id="main-shadow"></div></main>
+      <nav aria-label="Primary"><div id="nav-shadow"></div></nav>
+      <section><div id="section-shadow"></div></section>
+      <div role="article"><div id="role-article-shadow"></div></div>
+      <div role="complementary"><div id="role-complementary-shadow"></div></div>
+      <div role="main"><div id="role-main-shadow"></div></div>
+      <div role="navigation" aria-label="Secondary"><div id="role-navigation-shadow"></div></div>
+      <div role="region" aria-label="News"><div id="role-region-shadow"></div></div>
       <div id="page-shadow"></div>
       <script>
-        for (const id of ['article-shadow', 'region-shadow', 'page-shadow']) {
+        for (const id of [
+          'article-shadow', 'aside-shadow', 'main-shadow', 'nav-shadow', 'section-shadow',
+          'role-article-shadow', 'role-complementary-shadow', 'role-main-shadow', 'role-navigation-shadow', 'role-region-shadow',
+          'page-shadow',
+        ]) {
           const root = document.getElementById(id).attachShadow({ mode: 'open' });
           root.innerHTML = '<div></div>';
           root.firstElementChild.attachShadow({ mode: 'open' }).innerHTML =
