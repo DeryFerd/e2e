@@ -348,7 +348,7 @@ export default {
 - `limrun()` from `@e2e-dev/limrun` leases one device per worker and installs
   `app.appPath` before tests. Set `LIMRUN_API_KEY`; install `@limrun/api` and
   matching `agent-device` peers. Android needs `adb` on `PATH` for its tunnel.
-  With agent-device 0.21.22, iOS keyboard actions such as `locator.press('Enter')`
+  With agent-device 0.21.25, iOS keyboard actions such as `locator.press('Enter')`
   return `UNSUPPORTED_CAPABILITY`; tap an app button when available.
   See `examples/with-limrun` for the same form and restart tests on both platforms.
 - Only a control that appeared or moved with the previous action waits out
