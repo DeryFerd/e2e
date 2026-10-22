@@ -1,5 +1,19 @@
 # @e2e-dev/mobile
 
+## 0.12.4
+
+### Patch Changes
+
+- [#1308](https://github.com/tester-army/e2e/pull/1308) [`07eb481`](https://github.com/tester-army/e2e/commit/07eb4812ffd7226d5a5a1ee1a6ab23076f138f0f) Thanks [@okwasniewski](https://github.com/okwasniewski)! - Bump agent-device to 0.21.29.
+
+- [#1281](https://github.com/tester-army/e2e/pull/1281) [`2b2b845`](https://github.com/tester-army/e2e/commit/2b2b845455e5d31b30b9501336717f080324d9c5) Thanks [@KrzysztofMoch](https://github.com/KrzysztofMoch)! - Locators and `expect` now keep waiting while iOS reports the app as not running just after `app.open()`, `app.restart()`, or `device.openLink()` launches it, as on a physical iPhone, instead of failing at once with `ENGINE_FAILURE`. A wait that runs out while the app is still down fails with that reason. An app that exits after its first readable screen still fails at once.
+
+- [#1274](https://github.com/tester-army/e2e/pull/1274) [`2a07390`](https://github.com/tester-army/e2e/commit/2a07390dc47c3f6d27069d1da411d14ea7d693e5) Thanks [@kacperkapusciak](https://github.com/kacperkapusciak)! - Read an empty iOS text field as empty. XCTest reports an empty field's placeholder as its value, so the agent and `toHaveValue` saw the placeholder text as typed text, and an agent asked to submit an empty form spent its turns trying to delete it.
+
+- [#1305](https://github.com/tester-army/e2e/pull/1305) [`787a5d5`](https://github.com/tester-army/e2e/commit/787a5d5407a223bee5c05d5eaee7b530f0db939d) Thanks [@KrzysztofMoch](https://github.com/KrzysztofMoch)! - `device.dismissKeyboard()` on an iPhone no longer presses the control under the middle of the screen. The drag that sends a keyboard with no dismiss key away started at the exact centre and could toggle a checkbox or press a filter button there; it now starts at the nearest point no control covers, inside a scroll view when the screen has one, and a screen with no such point above the keyboard fails with `UNSUPPORTED_CAPABILITY` instead of touching it.
+
+- [#1209](https://github.com/tester-army/e2e/pull/1209) [`ef977f4`](https://github.com/tester-army/e2e/commit/ef977f4856da009cac26d78d2e9bb14e5991ee41) Thanks [@knowbody](https://github.com/knowbody)! - Keep healthy agent-device sessions open on leased devices across worker replacement, so later tests no longer fail with "Device is already in use". The engine also retries a failed provider recording stop before the worker's next attempt.
+
 ## 0.12.3
 
 ### Patch Changes
