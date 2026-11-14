@@ -39,6 +39,7 @@ decisionExecutor({ model: { specificationVersion: 'v4', provider: 'test', modelI
 
 decisionFilter({ model: gateway.decisionModel('typesafe-ai/jev') } satisfies DecisionFilterOptions);
 decisionFilter({ model: gateway.decisionModel('typesafe-ai/jev'), providerOptions: { gateway: { zeroDataRetention: true } } });
+decisionFilter({ model: gateway.decisionModel('typesafe-ai/jev'), unjudgedRelevance: 0.75 } satisfies DecisionFilterOptions);
 
 // @ts-expect-error A decision filter requires a decision model, not a model id.
 decisionFilter({ model: 'typesafe-ai/jev' });
