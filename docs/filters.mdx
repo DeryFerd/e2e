@@ -167,6 +167,10 @@ the most with `--max-failures` and with one worker, the default in CI.
   workers a run that finishes whole can end later. The report keeps its
   order, and `e2e list` shows none.
 
+`decisionFilter({ model, unjudgedRelevance })` moves that 50%: a number
+from 0 to 1 for the tests the model did not judge. 0 starts every unjudged
+file after every judged one, 1 beside the ones the change touches.
+
 A filter you write scores tests with `relevance`, as in
 [Write your own](#write-your-own).
 
