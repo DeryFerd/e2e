@@ -4,7 +4,6 @@ import { createCodexProvider, type CodexLoginOptions } from './providers/openai.
 import { createCopilotProvider, type CopilotLoginOptions } from './providers/github-copilot.ts';
 import { createOpencodeConsoleProvider } from './providers/opencode-console.ts';
 import { createXaiProvider } from './providers/xai.ts';
-import { PROVIDER_IDS } from './provider-ids.ts';
 import { EnvCredentialStore, defaultCredentialStore } from './store.ts';
 import type { CredentialStore, OAuthProvider } from './types.ts';
 
@@ -24,10 +23,6 @@ const PROVIDERS: Record<ProviderId, OAuthProvider> = {
   'opencode-console': createOpencodeConsoleProvider(),
   spacexsi: createXaiProvider(),
 };
-
-export function isProviderId(id: string): id is ProviderId {
-  return (PROVIDER_IDS as readonly string[]).includes(id);
-}
 
 export function getProvider(id: ProviderId): OAuthProvider {
   return PROVIDERS[id];

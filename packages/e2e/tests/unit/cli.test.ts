@@ -296,6 +296,18 @@ describe('e2e run argument parsing', () => {
     expect(runMock).not.toHaveBeenCalled();
   });
 
+  it('rejects a --model that is not a provider and model id with exit code 2 and never checks', async () => {
+    for (const value of ['bogus', 'other/gpt-6', 'openai/', '/gpt-6']) {
+      stderrSpy.mockClear();
+      process.exitCode = undefined;
+      await invoke('doctor', '--model', value);
+      expect(process.exitCode, value).toBe(2);
+      expect(written(stderrSpy)).toContain(
+        `option '--model <ids>' argument '${value}' is invalid. must be <provider>/<model-id> with provider one of openai, github-copilot, opencode-console, spacexsi, spacexai, grok, e.g. openai/gpt-6-luna`,
+      );
+    }
+  });
+
   it('--watch hands the parsed options to the session and takes its exit code', async () => {
     const ci = process.env.CI;
     delete process.env.CI;

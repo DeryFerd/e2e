@@ -290,4 +290,35 @@ describe('e2e doctor', () => {
     expect(stored.exitCode).toBe(0);
     expect(stored.report.checks.at(-1)).toMatchObject({ id: 'model', status: 'pass', login: 'openai', model: { modelId: 'gpt-6-luna' } });
   });
+
+  it('checks a model --model names with no config entry, beside a config that loads and one whose target names nothing', () => {
+    const absent = doctorJson({ 'README.md': '' }, ['--model', 'openai/gpt-6-luna']);
+    expect(absent.exitCode).toBe(2);
+    expect(absent.report.checks.map(({ id, status }) => ({ id, status }))).toEqual([
+      { id: 'node', status: 'pass' },
+      { id: 'config', status: 'fail' },
+      { id: 'model', status: 'fail' },
+    ]);
+    expect(absent.report.checks.at(-1)).toMatchObject({ id: 'model', login: 'openai', code: 'MODEL_UNAVAILABLE', model: { modelId: 'gpt-6-luna' } });
+    const stored = doctorJson({ 'README.md': '' }, ['--model', 'openai/gpt-6-luna'], { E2E_OAUTH_CREDENTIALS: JSON.stringify({ openai: { access: 'a', refresh: 'r', expires: 0 } }) });
+    expect(stored.report.checks.at(-1)).toMatchObject({ id: 'model', status: 'pass', login: 'openai', model: { modelId: 'gpt-6-luna' } });
+    // The config still fails, so the report does; the named model passed regardless.
+    expect(stored.exitCode).toBe(2);
+    const called = doctorJson({ 'README.md': '' }, ['--model', 'openai/gpt-6-luna', '--check-model']);
+    expect(called.report.checks.at(-1)).toMatchObject({ id: 'model', status: 'fail', code: 'MODEL_UNAVAILABLE' });
+    // A config that loads keeps its own checks ahead of the named ones, on both paths.
+    const loaded = doctorJson({ 'e2e.config.ts': config() }, ['--model', 'openai/gpt-6-luna']);
+    expect(loaded.report.checks.map(({ id }) => id)).toEqual(['node', 'config', 'toolchain', 'engine', 'model', 'model']);
+    expect(loaded.report.checks.at(-1)).toMatchObject({ id: 'model', status: 'fail', code: 'MODEL_UNAVAILABLE' });
+    const unknownTarget = doctorJson({ 'e2e.config.ts': config() }, ['--target', 'nope', '--model', 'openai/gpt-6-luna']);
+    expect(unknownTarget.report.checks.map(({ id }) => id)).toEqual(['node', 'config', 'model']);
+    expect(unknownTarget.report.checks.at(-1)).toMatchObject({ id: 'model', status: 'fail', code: 'MODEL_UNAVAILABLE' });
+    // A malformed name fails while the command line is parsed, never as a doctor check.
+    const bad = doctor({ 'README.md': '' }, ['--model', 'bogus']);
+    expect(bad.exitCode).toBe(2);
+    expect(bad.stderr).toContain(
+      "option '--model <ids>' argument 'bogus' is invalid. must be <provider>/<model-id> with provider one of openai, github-copilot, opencode-console, spacexsi, spacexai, grok, e.g. openai/gpt-6-luna",
+    );
+    expect(bad.stdout).not.toContain('"schemaVersion"');
+  });
 });

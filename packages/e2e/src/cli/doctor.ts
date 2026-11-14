@@ -3,7 +3,9 @@
  * anything. It loads the config, asks each target's engine what it needs on
  * this machine, and names the model each agent resolved to. It never claims
  * which credential a model reads: the instance owns that. Only a login e2e
- * stores is checked, and `--check-model` makes one real call per model.
+ * stores is checked, and `--check-model` makes one real call per model. A
+ * model `--model` names needs no config entry and is checked even when the
+ * config fails.
  */
 
 import picocolors from 'picocolors';
@@ -12,7 +14,7 @@ import { ModelOutputInvalidError } from '@e2e-dev/core/lib/agent/model/adapter';
 import { loadAiSdk } from '@e2e-dev/core/lib/agent/ai-sdk';
 import { AgentError, isAgentError } from '@e2e-dev/core/lib/agent/error';
 import { engineAppInfo } from '@e2e-dev/core/lib/config/app';
-import { modelLabel, type ResolvedAgentConfig, type ResolvedModel } from '@e2e-dev/core/lib/config/agent';
+import { modelLabel, resolveAgentConfig, type ResolvedAgentConfig, type ResolvedModel } from '@e2e-dev/core/lib/config/agent';
 import { discoverConfig, loadConfigModule, missingConfigError } from '../config/load.ts';
 import { type ResolvedConfig } from '@e2e-dev/core/lib/config/resolve';
 import { resolveConfig } from '../config/resolve-run.ts';
@@ -24,10 +26,12 @@ import { onBun, SUPPORTED_BUN_RANGE, SUPPORTED_NODE_RANGE } from '../internal/ru
 import { budgetText, cancelledError, NEVER_ABORTS, withAbort, withinCleanupBudget } from '@e2e-dev/core/lib/internal/time';
 import { loginOf } from '../oauth/login-model.ts';
 import { apiKeyFor, getProvider, loginHint, type ProviderId } from '../oauth/providers.ts';
+import type { NamedModel } from './parse-names.ts';
 import { defaultCredentialStore } from '../oauth/store.ts';
 import { bounded } from '../report/format.ts';
 import { processSecrets, registerStaticSecrets } from '@e2e-dev/core/lib/run/secrecy';
 import type { RunnerOutput } from '../run/process-output.ts';
+import type { ModelInstance } from '@e2e-dev/core/lib/types';
 
 /** The `schemaVersion` of `e2e doctor --json`, described by `schema/doctor-v1.schema.json`. */
 const DOCTOR_SCHEMA_VERSION = 'doctor-1';
@@ -98,6 +102,8 @@ export interface DoctorOptions {
   readonly env: NodeJS.ProcessEnv;
   readonly config?: string | undefined;
   readonly targets?: readonly string[] | undefined;
+  /** Models `--model` names, each checked without a config entry. */
+  readonly models?: readonly NamedModel[] | undefined;
   readonly headed: boolean;
   readonly checkModel: boolean;
   readonly signal: AbortSignal;
@@ -111,9 +117,10 @@ export interface DoctorOptions {
 
 /**
  * Runs every check: the runtime, then the config, then each selected
- * target's engine and each agent's model. A config that does not load ends
- * the checks there, since the rest read it; so does the signal, after the
- * check it cut short.
+ * target's engine, each agent's model, and each model `--model` names. A
+ * config that does not load ends the checks that read it, since the rest
+ * need it; the named models still run, since they exist without one. The
+ * signal ends the checks after the one it cut short.
  */
 export async function doctor(options: DoctorOptions): Promise<DoctorReport> {
   const checks: DoctorCheck[] = [nodeCheck()];
@@ -121,17 +128,35 @@ export async function doctor(options: DoctorOptions): Promise<DoctorReport> {
     (config) => ({ config }),
     (cause: unknown) => ({ failure: failed('config', cause) }),
   );
+  // The AI SDK is an optional peer a run with agent steps needs, so every model check on this machine
+  // fails when it cannot load, whether the model is an agent's or one `--model` names.
+  const sdk = await loadSdk('config' in loaded ? loaded.config : undefined, options);
   if ('failure' in loaded) {
     checks.push(loaded.failure);
-    return doctorReport(options.version, checks);
+  } else {
+    checks.push(...(await configChecks(loaded.config, options, sdk)));
   }
-  const { config } = loaded;
+  // The named models run on either path: they exist without a config entry, so a failed config cannot hide them.
+  if (!options.signal.aborted) checks.push(...(await namedModelChecks(options, sdk)));
+  return doctorReport(options.version, checks);
+}
+
+/** The AI SDK load error when any model is checked, else undefined: an agent's model, or one `--model` names. */
+async function loadSdk(config: ResolvedConfig | undefined, options: DoctorOptions): Promise<unknown> {
+  const agentsHaveModels = config !== undefined && [...config.agents].some(([, agent]) => agent.model !== undefined || agent.judge !== undefined);
+  if (!agentsHaveModels && (options.models ?? []).length === 0) return undefined;
+  return await loadAiSdk().then(() => undefined, (cause: unknown) => cause);
+}
+
+/** The checks that read the loaded config: its targets, each engine, and each agent's model. */
+async function configChecks(config: ResolvedConfig, options: DoctorOptions, sdk: unknown): Promise<DoctorCheck[]> {
+  const checks: DoctorCheck[] = [];
   let targets: readonly ResolvedTarget[];
   try {
     targets = selectTargets(config.targets, options.targets);
   } catch (cause) {
     checks.push(failed('config', cause));
-    return doctorReport(options.version, checks);
+    return checks;
   }
   checks.push({
     id: 'config',
@@ -140,11 +165,11 @@ export async function doctor(options: DoctorOptions): Promise<DoctorReport> {
     targets: targets.map((target) => ({ name: target.name, platform: target.platform, ...(target.engine === undefined ? {} : { engine: target.engine.name }) })),
   });
   for (const target of targets) {
-    if (options.signal.aborted) return doctorReport(options.version, checks);
+    if (options.signal.aborted) return checks;
     checks.push(...(await engineChecks(target, config, options)));
   }
-  if (!options.signal.aborted) checks.push(...(await modelChecks(config, options)));
-  return doctorReport(options.version, checks);
+  if (!options.signal.aborted) checks.push(...(await modelChecks(config, options, sdk)));
+  return checks;
 }
 
 /** The report, every message redacted of the config's secrets: an engine or a provider error may quote one. */
@@ -255,11 +280,25 @@ function malformedFinding(engine: string, value: unknown): InfrastructureError {
  * login passes or fails on that login and any other is `unknown`; with it,
  * each model answers one call per set of provider options the agents send it.
  */
-async function modelChecks(config: ResolvedConfig, options: DoctorOptions): Promise<DoctorCheck[]> {
+async function modelChecks(config: ResolvedConfig, options: DoctorOptions, sdk: unknown): Promise<DoctorCheck[]> {
   const agents = [...config.agents];
-  const sdk = agents.some(([, agent]) => agent.model !== undefined || agent.judge !== undefined) ? await loadAiSdk().then(() => undefined, (cause: unknown) => cause) : undefined;
+  const call = options.checkModel ? sharedCall(options) : undefined;
+  const checks: DoctorCheck[] = [];
+  for (const [name, agent] of agents) {
+    if (options.signal.aborted) break;
+    checks.push(await modelCheck(name, agent, sdk, call));
+  }
+  return checks;
+}
+
+/**
+ * The `--check-model` call every check makes through: one small call per
+ * model instance per set of provider options, shared by the checks that ask
+ * for it, so two checks equal on both answer one call between them.
+ */
+function sharedCall(options: DoctorOptions): (model: ResolvedModel, agent: ResolvedAgentConfig) => Promise<unknown> {
   const calls = new Map<object, Map<string, Promise<unknown>>>();
-  const call = (model: ResolvedModel, agent: ResolvedAgentConfig): Promise<unknown> => {
+  return (model, agent) => {
     let byOptions = calls.get(model.model);
     if (byOptions === undefined) {
       byOptions = new Map();
@@ -274,12 +313,6 @@ async function modelChecks(config: ResolvedConfig, options: DoctorOptions): Prom
     }
     return pending;
   };
-  const checks: DoctorCheck[] = [];
-  for (const [name, agent] of agents) {
-    if (options.signal.aborted) break;
-    checks.push(await modelCheck(name, agent, sdk, options.checkModel ? call : undefined));
-  }
-  return checks;
 }
 
 /** What makes two agents' calls to one model the same call: their provider options and input limit. Undefined for options JSON cannot hold, which are never shared. */
@@ -292,13 +325,59 @@ function callKey(agent: ResolvedAgentConfig): string | undefined {
 }
 
 /**
+ * One `model` check per model `--model` names, through the same `modelCheck`
+ * an agent's model gets: a subscription model whose `e2e/oauth` constructor
+ * needs no config entry, resolved to the default agent profile, so the check
+ * shares `--check-model` calls the way agents' do. It runs whether or not the
+ * config loaded, checked on the stored login the constructor reads. A
+ * construction failure, such as a missing provider package, fails the check
+ * with its own code, naming the model.
+ */
+async function namedModelChecks(options: DoctorOptions, sdk: unknown): Promise<DoctorCheck[]> {
+  const models = options.models ?? [];
+  if (models.length === 0) return [];
+  const call = options.checkModel ? sharedCall(options) : undefined;
+  const checks: DoctorCheck[] = [];
+  for (const { provider, modelId } of models) {
+    if (options.signal.aborted) break;
+    let instance: ModelInstance;
+    try {
+      instance = await constructModel(provider, modelId);
+    } catch (cause) {
+      // The model never resolved, so the report names the one it was asked for and the login it would read.
+      checks.push({ id: 'model', status: 'fail', model: { provider, modelId }, login: provider, ...errorOutcome(cause) });
+      continue;
+    }
+    // No agent names the check, and no config entry sets a profile: the defaults stand in.
+    checks.push(await modelCheck(undefined, resolveAgentConfig({ model: instance }, '--model'), sdk, call));
+  }
+  return checks;
+}
+
+/** The `e2e/oauth` constructor each subscription provider's model ids come from, loaded only when a check needs it. */
+async function constructModel(provider: ProviderId, modelId: string): Promise<ModelInstance> {
+  switch (provider) {
+    case 'openai':
+      return (await import('../oauth/chatgpt.ts')).chatgpt(modelId);
+    case 'github-copilot':
+      return (await import('../oauth/copilot.ts')).copilot(modelId);
+    case 'opencode-console':
+      return (await import('../oauth/opencode-console.ts')).opencodeConsole(modelId);
+    case 'spacexsi':
+      return (await import('../oauth/grok.ts')).grok(modelId);
+  }
+}
+
+/**
  * The `model` check of one agent: its model and, when it is another one, its
  * judge, each checked on its own. An executor that brings its own agent may
  * still leave judgments to `judge`.
  */
 async function modelCheck(
-  name: string,
+  /** The agent's name; undefined for a model `--model` names, which has no config entry behind it. */
+  name: string | undefined,
   agent: ResolvedAgentConfig,
+  /** The AI SDK load error, when any model is checked: a run with agent steps needs the optional package. */
   sdkFailure: unknown,
   call: ((model: ResolvedModel, agent: ResolvedAgentConfig) => Promise<unknown>) | undefined,
 ): Promise<DoctorCheck> {
@@ -306,23 +385,22 @@ async function modelCheck(
   const { model } = agent;
   const judge = agent.judge === undefined || agent.judge.model === model?.model ? undefined : agent.judge;
   const roles = [...(model === undefined ? [] : [{ role: 'model', model }]), ...(judge === undefined ? [] : [{ role: 'judge', model: judge }])];
-  if (roles.length === 0) {
-    if (agent.executor !== undefined) {
-      return { id: 'model', status: 'unknown', agent: name, ...executor, message: `executor "${agent.executor.name}" brings its own agent, which doctor does not check` };
-    }
-    return { id: 'model', status: 'skip', agent: name, message: 'no model configured: tests without agent steps run, agent steps fail' };
-  }
   const logins = [...new Set(roles.flatMap((entry) => loginOf(entry.model.model) ?? []))];
-  const result = (status: DoctorStatus, outcome: Pick<DoctorCheck, 'code' | 'message'>): DoctorCheck => ({
+  const result = (status: DoctorStatus, outcome: Pick<DoctorCheck, 'code' | 'message'> = {}): DoctorCheck => ({
     id: 'model',
     status,
-    agent: name,
+    ...(name === undefined ? {} : { agent: name }),
     ...executor,
     ...(model === undefined ? {} : { model: doctorModel(model) }),
     ...(judge === undefined ? {} : { judge: doctorModel(judge) }),
     ...(logins.length === 1 ? { login: logins[0]! } : {}),
     ...outcome,
   });
+  if (roles.length === 0) {
+    return agent.executor === undefined
+      ? result('skip', { message: 'no model configured: tests without agent steps run, agent steps fail' })
+      : result('unknown', { message: `executor "${agent.executor.name}" brings its own agent, which doctor does not check` });
+  }
   if (sdkFailure !== undefined) return result('fail', errorOutcome(sdkFailure));
   const credentials: string[] = [];
   for (const provider of logins) {
