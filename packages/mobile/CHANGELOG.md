@@ -1,5 +1,31 @@
 # @e2e-dev/mobile
 
+## 0.12.8
+
+### Patch Changes
+
+- [#1859](https://github.com/e2e-inc/e2e/pull/1859) [`e65091b`](https://github.com/e2e-inc/e2e/commit/e65091bbe10b00860ec6240336b57933a7ce65f7) Thanks [@kdy1](https://github.com/kdy1)! - Update agent-device to 0.21.38. Opening an app now waits for the app's first screen before the first capture, and on Android a relaunch accepts a package that Android restarts at once. On iOS, `device.back()` presses the navigation bar's back button when there is one, keyboard dismiss and enter have a bounded idle wait, and agent-device establishes the screen origin of a full-screen private accessibility root.
+
+- [#1737](https://github.com/e2e-inc/e2e/pull/1737) [`0a5ee16`](https://github.com/e2e-inc/e2e/commit/0a5ee16387cf213df547a8422b7d690675744986) Thanks [@kdy1](https://github.com/kdy1)! - New package `@e2e-dev/core`: the engine contract, locators, agent, replay cache, and engine sessions that `e2e` is built on. `e2e` depends on it at the same version, and `e2e/engine` and `e2e/agent` re-export it unchanged. `@e2e-dev/web` and `@e2e-dev/mobile` peer on `@e2e-dev/core` beside `e2e`, and import the contract from `@e2e-dev/core/engine`, which a third-party engine can now import too. npm, pnpm and Bun install the new peer themselves. A Yarn project lists `@e2e-dev/core` beside the engine; `e2e init` and `e2e upgrade` add it.
+
+- [#1734](https://github.com/e2e-inc/e2e/pull/1734) [`dbe3dc5`](https://github.com/e2e-inc/e2e/commit/dbe3dc54a9123b10e535441f785de2e81a202798) Thanks [@kdy1](https://github.com/kdy1)! - New package `@e2e-dev/core`: drive a browser or a native app from plain code, with no test runner, config file, or report. `launch(web())` prepares an engine and returns a host; `host.newSession()` opens an isolated session holding `screen`, `app`, `platform`, and the engine's fixture. `session.saveState()` captures state in memory, and `SessionState.export({ key })` returns it only AES-256-GCM encrypted, as `session-state-1` bytes. Secrets go to `launch({ secrets })` and fill through `host.secret(name)`. `createAgent(session, { model, cache })` from `@e2e-dev/core/agent` adds the agent: with `cache`, every `act` names its recording with `cacheKey`.
+  
+  `@e2e-dev/web` and `@e2e-dev/mobile` need `e2e` only for the `test` their main entry exports, so their `e2e` peer is optional. Without `e2e`, the main entry still loads and its engine factory works; `test`, `describe`, and the hooks throw `RUNNER_NOT_INSTALLED` when called. Its types still name `e2e`, so a TypeScript program without it imports from the `/engine` entry or sets `skipLibCheck`. `@e2e-dev/core/agent` also exports what `e2e/agent` does, `defineTool` among it.
+  
+  Device targets take `app.linkBase`: `app.open('/orders/42')` then opens the path as a link in the pinned app, through the new optional engine hook `session.openLink` (protocol method `session/openLink`). `@e2e-dev/mobile` implements it.
+  
+  `@e2e-dev/web/engine` and `@e2e-dev/mobile/engine` export the engine factories and their types without `test`, so a program that only drives an engine never loads the test runner. `defineEngine<Fixtures>()` and `EngineHandle<Fixtures>` now carry the fixtures an engine contributes as a type, and `defineEngine` requires a factory for each one `Fixtures` names: `web()` is an `EngineHandle<WebFixtures>`, `mobile()` an `EngineHandle<MobileFixtures>`. `defineEngine` refuses a fixture named `close`, `saveState`, or `setDefaultTimeout`, the methods of a session. `@e2e-dev/core/engine` (and `e2e/engine`) exports `isRefusedLinkScheme`, the scheme list app links are refused by, which `@e2e-dev/mobile` now uses for `device.openLink`.
+
+- [#1708](https://github.com/e2e-inc/e2e/pull/1708) [`f659d64`](https://github.com/e2e-inc/e2e/commit/f659d64d80cbb484f539681a6bf72f5047854a99) Thanks [@KayaanT](https://github.com/KayaanT)! - `@e2e-dev/mobile/lease` adds `agentDevicePlugin(entry)`, which checks a provider plugin's version against the engine's agent-device and registers it in a lease daemon's home; `@e2e-dev/testmu` now uses it and needs `@e2e-dev/mobile` 0.12.8 or later. A lease's `device` selector is used to allocate it and no longer goes on the worker's client, since the lease scope already picks the device.
+
+- [#1787](https://github.com/e2e-inc/e2e/pull/1787) [`74435e2`](https://github.com/e2e-inc/e2e/commit/74435e23b68a103ce21f25947c3b7a8a4015cb2a) Thanks [@karolkulesza](https://github.com/karolkulesza)! - The step label for `device.openLink` drops a link's userinfo, query, and fragment, and shows `<link>` for a string that does not parse as a URL. `device.openApp` labels an app id as it is, or `<link>` when it is shaped like a link.
+
+- [#1784](https://github.com/e2e-inc/e2e/pull/1784) [`dd39974`](https://github.com/e2e-inc/e2e/commit/dd39974acedee5b68042dd219f99249f781dfaf0) Thanks [@karolkulesza](https://github.com/karolkulesza)! - `mobile()` now refuses a `snapshot` value other than `'full'` or `'interactive'` and a `videoTouches` value that is not a boolean, instead of quietly using the default.
+
+- [#1820](https://github.com/e2e-inc/e2e/pull/1820) [`a7d79bd`](https://github.com/e2e-inc/e2e/commit/a7d79bd05bd4aa7ad09092ef2074d0fc229859e9) Thanks [@gronxb](https://github.com/gronxb)! - An iOS action on a node that agent-device refuses with `window-origin-unknown` now fails as `ACTION_FAILED` (`NOT_ACTIONABLE`) instead of an infrastructure `ENGINE_FAILURE`. agent-device sent nothing. The message says that node bounds, `boundingBox()` included, may be offset from screen coordinates, and for a tap names `screen.tapAt()` with a point not taken from them.
+
+- [#1728](https://github.com/e2e-inc/e2e/pull/1728) [`e167149`](https://github.com/e2e-inc/e2e/commit/e167149af1d390492af09e5fe28bb64072e9df64) Thanks [@karolkulesza](https://github.com/karolkulesza)! - The `device` option's documentation now says a paired iPhone or iPad that is reachable counts as booted, and that a shut-down device boots in tiers: on iOS an iPhone, then an iPad, then an Apple TV; on Android a phone or tablet, then a TV.
+
 ## 0.12.7
 
 ### Patch Changes

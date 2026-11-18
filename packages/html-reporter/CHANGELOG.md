@@ -1,5 +1,13 @@
 # @e2e-dev/html-reporter
 
+## 0.0.2
+
+### Patch Changes
+
+- [#1829](https://github.com/e2e-inc/e2e/pull/1829) [`3fac999`](https://github.com/e2e-inc/e2e/commit/3fac999c460bc2dfc1268aba9316e3f67ca9ad4f) Thanks [@Wali05](https://github.com/Wali05)! - Durations just under a unit boundary now read `1.0s`, `1m 0s`, or `2m 0s` instead of `1000ms`, `60.0s`, or `1m 60s`.
+
+- [#1851](https://github.com/e2e-inc/e2e/pull/1851) [`9034956`](https://github.com/e2e-inc/e2e/commit/9034956b204e57be2ef982148c02d1d573ec495d) Thanks [@Wali05](https://github.com/Wali05)! - Token counts just under a million now read `1.0M` instead of `1000.0k`, and the HTML report shows millions as `2.5M` instead of `2500.0k`.
+
 ## 0.0.1
 
 ### Patch Changes

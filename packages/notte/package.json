@@ -1,6 +1,6 @@
 {
   "name": "@e2e-dev/notte",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "description": "Notte cloud browsers for e2e: run web targets in Notte's hosted browser sessions",
   "keywords": [
     "e2e",
