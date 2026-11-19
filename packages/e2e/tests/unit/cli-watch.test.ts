@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { compileGlobList } from '@e2e-dev/core/lib/internal/globs';
 import type { RunOptions, RunOutcome } from '../../src/run/runner.ts';
 import { SignalLadder } from '../../src/cli/signals.ts';
+import { json as jsonReporter } from '../../src/reporters.ts';
 import {
   bannerText,
   ChangeWatcher,
@@ -656,7 +657,7 @@ describe('watchSession', () => {
       base: {},
       cwd: root,
       signals: new SignalLadder(),
-      run: async () => outcome(0, { ...loaded()!, reporters: ['json'] } as RunOutcome['config']),
+      run: async () => outcome(0, { ...loaded()!, reporters: [jsonReporter()] } as RunOutcome['config']),
       stdin: undefined,
       write: (text) => written.push(text),
       writeError: (text) => written.push(text),
@@ -665,7 +666,7 @@ describe('watchSession', () => {
       watch: fakeWatch(new Map()),
     });
     expect(json).toBe(2);
-    expect(written.join('')).toContain('json reporter');
+    expect(written.join('')).toContain('the json reporter the config sets');
 
     rmSync(configPath);
     const nothing = await watchSession({

@@ -23,6 +23,7 @@ import { classifyError, codedMessage, ConfigurationError, errorMessage, exitCode
 import { bounded } from '../report/format.ts';
 import { stepLine, stepPromptText } from '../report/list-steps.ts';
 import type { RunEventSink } from '../run/events.ts';
+import { writeTerminal } from '../run/process-output.ts';
 import { run, type RunOptions, type RunOutcome } from '../run/runner.ts';
 import type { RunnerOutput } from '../run/process-output.ts';
 import type { BeforeStep, HeldStep, StepHoldContext, StepPrompt } from '../run/step-hold.ts';
@@ -402,7 +403,7 @@ export async function serveSteps(options: RunOptions, signals: SignalLadder, add
     });
   const plain = picocolors.createColors(false);
   // Beside the list reporter's lines, not as the runner's own console output.
-  const print = options.processOutput?.listOutput.write ?? ((line: string) => void process.stdout.write(`${line}\n`));
+  const print = (line: string): void => writeTerminal('stdout', `${line}\n`);
   /**
    * Prints how each step ended into the run's output, which the next answer
    * starts with, then passes the event on. Agent steps are left out: without

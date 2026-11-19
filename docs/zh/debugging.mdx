@@ -354,7 +354,7 @@ stdout | |web| tests/todos.e2e.ts > adds a todo
 hello from the test
 ```
 
-测试外部的输出，例如文件顶层或报告器的输出，显示在 `stdout | runner` 或 `stderr | runner` 下。这两个流都输出到 stdout。未使用 `list` 报告器时，输出会按写入方式进入各自的流；但 `json` 报告器（`--reporter json` 或 `reporters` 中的设置）例外，它将 stdout 留给报告，并将输出写到 stderr。加载配置产生的输出会显示在运行标题之前；如果加载失败，则由一条警告替代。
+测试外部的输出，例如文件顶层或报告器的输出，显示在 `stdout | runner` 或 `stderr | runner` 下。这两个流都输出到 `list` 输出的位置：stdout，与 `json` 同时使用时为 stderr。未使用 `list` 报告器，也没有其他通过 [`onOutput`](/reference/reporters#onoutput) 输出到终端的报告器时，输出会按写入方式进入各自的流；但 `json` 报告器（`--reporter json` 或 `reporters` 中的设置）例外，它将 stdout 留给报告，并将输出写到 stderr。加载配置产生的输出会显示在运行标题之前；如果加载失败，则由一条警告替代。
 
 运行器会对机密值进行[脱敏](/reference/security#redaction)。报告不包含控制台输出，因此对于后续读者需要的信息，请使用 `expect` 或产物保存。
 

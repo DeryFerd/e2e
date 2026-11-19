@@ -131,7 +131,7 @@ function serialGroup(
 }
 
 function runStarted(
-  overrides: { ci?: boolean; targets?: string[]; projectRoot?: string; model?: string; judge?: string } = {},
+  overrides: { ci?: boolean; targets?: string[]; projectRoot?: string; model?: string; judge?: string; stepping?: true } = {},
 ): RunEventFact {
   const projectRoot = overrides.projectRoot ?? '/project';
   return {
@@ -144,6 +144,7 @@ function runStarted(
     targets: overrides.targets ?? ['chromium'],
     ...(overrides.model === undefined ? {} : { model: overrides.model }),
     ...(overrides.judge === undefined ? {} : { judge: overrides.judge }),
+    ...(overrides.stepping === undefined ? {} : { stepping: overrides.stepping }),
   };
 }
 
@@ -1291,8 +1292,8 @@ describe('ListReporter', () => {
       const restore = withTerminalSize({ columns: 120, rows: 40 });
       try {
         const { chunks, lines, output } = liveCapture();
-        const reporter = new ListReporter(output, { live: true, colors: false, stepping: true });
-        reporter.handle(runStarted());
+        const reporter = new ListReporter(output, { live: true, colors: false });
+        reporter.handle(runStarted({ stepping: true }));
         reporter.handle(plan([{ file: 'tests/coffee.e2e.ts', tests: 1 }]));
         reporter.handle(testStarted('t1', 'orders a drink', 'chromium', 'tests/coffee.e2e.ts'));
         const step = (progress: object) => reporter.handle({ type: 'step', testId: 't1', agent: 'default', repeat: 0, target: 'chromium', progress } as never);
@@ -1338,8 +1339,8 @@ describe('ListReporter', () => {
       const restore = withTerminalSize({ columns: 120, rows: 18 });
       try {
         const { chunks, output } = liveCapture();
-        const reporter = new ListReporter(output, { live: true, colors: false, stepping: true });
-        reporter.handle(runStarted());
+        const reporter = new ListReporter(output, { live: true, colors: false });
+        reporter.handle(runStarted({ stepping: true }));
         reporter.handle(plan([{ file: 'tests/coffee.e2e.ts', tests: 1 }]));
         reporter.handle(testStarted('t1', 'orders a drink', 'chromium', 'tests/coffee.e2e.ts'));
         const held = (n: number): NumberedStep => ({ step: { kind: 'step', target: 'chromium', testId: 't1', agent: 'default', repeat: 0, title: 'orders a drink', api: 'locator.click', label: `button ${n}` }, number: n });
@@ -1356,7 +1357,7 @@ describe('ListReporter', () => {
 
     it('prints the --step prompt as one line without a live window', () => {
       const lines: string[] = [];
-      const reporter = new ListReporter({ write: (line) => lines.push(line) }, { live: false, colors: false, stepping: true });
+      const reporter = new ListReporter({ write: (line) => lines.push(line) }, { live: false, colors: false });
       const held: HeldStep = { kind: 'step', target: 'chromium', testId: 't1', agent: 'default', repeat: 0, title: 'orders a drink', api: 'app.open', label: '/cart' };
       reporter.showStepPrompt({ steps: [{ step: held, number: 3 }], help: false, holdSteps: true });
       // `h` adds nothing to a plain line, so it prints nothing.
@@ -1538,24 +1539,6 @@ describe('ListReporter', () => {
       expect(eraseIndex).toBeGreaterThan(-1);
       expect(eraseIndex).toBeLessThan(noticeIndex);
       expect(chunks.at(-1)).toContain('Tests');
-    });
-
-    it('prints a line of the runner permanently above the live window, so a repaint keeps it', () => {
-      const { chunks, lines, output } = liveCapture();
-      const reporter = plainReporter(output, true);
-      reporter.handle(runStarted());
-      reporter.handle(testStarted('t1', 'signs in', 'chromium'));
-      const pause = 'Paused in signs in [chromium]:\nNext: e2e run --step next to resume the test, or e2e run --step stop to end the run.';
-      reporter.printLine(pause);
-      expect(lines).toContain(pause);
-      const printed = chunks.indexOf(`${pause}\n`);
-      // The window is erased before the line prints, then repainted below it.
-      // eslint-disable-next-line no-control-regex
-      expect(chunks[printed - 1]).toMatch(/\u001b\[\d+A\u001b\[0J$/);
-      const block = chunks[printed + 1]!;
-      reporter.handle(testStarted('t2', 'signs out', 'chromium'));
-      // The repaint clears the block below the line, leaving the line in place.
-      expect(chunks.at(-1)).toContain(`\u001b[${block.split('\n').length - 1}A\u001b[0J`);
     });
 
     it('never writes control sequences when live rendering is off', () => {

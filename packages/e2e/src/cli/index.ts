@@ -18,7 +18,7 @@ import { listSelection, run, type ListedPair, type RunOptions, type RunOutcome }
 import { claimRunnerOutput } from './run-output.ts';
 import { writeTerminal } from '../run/process-output.ts';
 import { STEP_BOUNDS, TIMEOUT_BOUNDS } from '../explore/bounds.ts';
-import { BUILTIN_REPORTERS, isBuiltinReporter } from '../report/builtin.ts';
+import { BUILTIN_REPORTERS, isBuiltinReporter } from '../report/builtin-id.ts';
 import { bounded, failureLine } from '../report/format.ts';
 import type { RecordingMode } from '@e2e-dev/core/lib/types';
 import type { BuiltinReporter } from '../run-types.ts';
@@ -846,7 +846,7 @@ function createProgram(version: string, telemetry: Telemetry, updateCheck: Updat
                     keys,
                   ).then(record),
                 stdin,
-                write: output.listOutput.raw,
+                write: (text) => writeTerminal('stdout', text),
                 writeError: (text) => void process.stderr.write(text),
                 pc: picocolors.createColors(process.stdout.isTTY === true),
                 clear: process.stdout.isTTY === true,

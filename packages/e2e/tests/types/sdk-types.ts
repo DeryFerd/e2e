@@ -5,6 +5,7 @@
  */
 
 import { z } from 'zod';
+import { json, junit, list as listReporter, markdown } from '../../src/reporters.ts';
 import {
   credentials,
   expect,
@@ -367,6 +368,25 @@ if (runEvent.type === 'step') {
 ({ onRunFinished: async () => undefined }) satisfies Reporter;
 // @ts-expect-error reporter ids are a closed union
 ({ targets, reporters: ['xunit'] }) satisfies E2EConfig;
+// The built-ins are factories on the same contract, beside ids and a project's own reporters.
+({ targets, reporters: [listReporter(), json(), junit({ outputFile: 'reports/junit.xml' }), markdown(), 'junit', reporter] }) satisfies E2EConfig;
+// @ts-expect-error the junit reporter takes an outputFile, nothing else
+junit({ output: 'reports' });
+({
+  name: 'dots',
+  printsTo: 'stdout',
+  onOutput: ({ stream, text, target, pair }) => void process[stream].write(`${target ?? 'runner'} ${pair?.testId ?? ''} ${text}`),
+  onStepPrompt: (prompt) => void prompt?.steps[0].step.label,
+  onSummary: (rows) => void rows.map((row) => row.label),
+}) satisfies Reporter;
+({
+  name: 'pages',
+  reportFiles: async (finished) => [{ path: 'reports/run.txt', content: finished.report.run.status, label: 'Run' }],
+}) satisfies Reporter;
+// @ts-expect-error printsTo names a terminal stream
+({ name: 'logs', printsTo: 'console', onEvent: () => undefined }) satisfies Reporter;
+// @ts-expect-error a report file holds text
+({ name: 'pages', reportFiles: () => [{ path: 'run.bin', content: new Uint8Array() }] }) satisfies Reporter;
 
 // A test filter is a named object under filters; it answers with the tests to leave out, each with a reason.
 const areas = {

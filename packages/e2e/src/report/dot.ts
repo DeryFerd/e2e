@@ -1,18 +1,39 @@
-/** Compact progress and user output for the terminal reporter. */
+/** The built-in `dot` reporter: one mark per test, then the `list` reporter's failures and summary. */
 
 import picocolors from 'picocolors';
 import type { ResultStatus } from '@e2e-dev/core/lib/run/records';
+import type { Reporter } from '../run-types.ts';
 import type { Colors } from './format.ts';
-import { writeTerminal, type OutputStream, type OutputView } from '../run/process-output.ts';
+import { ListReporter, runView } from './list.ts';
 
-export class DotProgress implements Pick<OutputView, 'show' | 'end'> {
+type OutputStream = 'stdout' | 'stderr';
+
+/** Options of the built-in `dot` reporter. */
+export interface DotReporterOptions {
+  /** The terminal stream it prints to; without it, `stdout`, or `stderr` beside `json`, as the `dot` id. */
+  readonly stream?: OutputStream;
+}
+
+/**
+ * The built-in `dot` reporter: one mark per selected test as it finishes,
+ * with what user code prints on its own lines, then the failures and the
+ * summary the `list` reporter prints.
+ */
+export function dot(options: DotReporterOptions = {}): Reporter {
+  const stream = options.stream ?? 'stdout';
+  const write = (to: OutputStream, text: string): void => void process[to].write(text);
+  return runView('dot', stream, options.stream === undefined, (output) => new ListReporter(output, { live: false, dots: new DotProgress(stream, write) }));
+}
+
+/** The marks of the `dot` reporter, and the user output it prints between them. */
+export class DotProgress {
   private readonly marks: Record<ResultStatus, string>;
   private columns = 0;
   private readonly unfinished = new Set<OutputStream>();
 
   constructor(
     private readonly stream: OutputStream,
-    private readonly output: (stream: OutputStream, text: string) => void = writeTerminal,
+    private readonly output: (stream: OutputStream, text: string) => void,
     colors = picocolors.isColorSupported,
   ) {
     const pc: Colors = picocolors.createColors(colors);

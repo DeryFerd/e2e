@@ -56,6 +56,10 @@
       "types": "./dist/runner.d.ts",
       "default": "./dist/runner.js"
     },
+    "./reporters": {
+      "types": "./dist/reporters.d.ts",
+      "default": "./dist/reporters.js"
+    },
     "./oauth/chatgpt": {
       "types": "./dist/oauth/chatgpt.d.ts",
       "default": "./dist/oauth/chatgpt.js"

@@ -524,7 +524,7 @@ e2e run [files...]
 
 | 选项 | 说明 |
 | --- | --- |
-| `--reporter <ids>` | 替代 `config.reporters` 中的内置 ID，以逗号分隔：`list`、`dot`、`json`、`junit`、`markdown`。默认：配置值。`json` 或 `dot` 与 `list` 同时使用会报 `INVALID_CONFIG`。配置中的[报告器对象](/reference/reporters)仍会运行。 |
+| `--reporter <ids>` | 替代 `config.reporters` 中的内置报告器，以逗号分隔：`list`、`dot`、`json`、`junit`、`markdown`。默认：配置值。配置中已配置的内置报告器，例如 `junit({ outputFile })`，保留其选项。与 `json` 同时使用时，`list` 和 `dot` 输出到 stderr。`dot` 与 `list` 同时使用会报 `INVALID_CONFIG`。配置中的[其他报告器](/reference/reporters)仍会运行。 |
 | `--output <dir>` | 本次运行的结果目录，覆盖配置的 [`output`](/reference/config#output)：包含报告、报告器文件、AI 追踪记录、`results/` 和 `sessions/`。默认：配置值，否则为 `.e2e`。相对于项目根目录解析，必须是根目录内的目录，不能是根目录本身；根目录及其他运行不能占用的目录（见链接中的列表）会报 `INVALID_CONFIG`。测试开始后会清空 `results/`；`--last-failed` 重新运行会保留上一份报告引用的内容。 |
 | `--cache-dir <dir>` | 本次运行的回放缓存目录，优先于 [`E2E_CACHE_DIR`](/reference/environment#replay-cache) 和 [`cache.dir`](/reference/config#cache)。默认：`E2E_CACHE_DIR`，否则为 `cache.dir`，再否则为 `.e2e/cache`。相对于项目根目录解析；`~` 或开头的 `~/` 表示主目录。缓存模式保持配置中的设置。与自定义 `cache.store` 一起使用会报 `INVALID_CONFIG`。 |
 | `--timings <file>` | 运行结束时更新的[耗时历史](/ci#cache-the-timings-history)，覆盖 `<output>/timings.json`。使用多个工作进程时，先启动没有耗时记录的文件，再按耗时从长到短启动其余文件。相对于项目根目录解析。文件缺失或无效视为没有历史记录，绝不报错。 |
@@ -600,7 +600,7 @@ $ npx e2e run --debug
 
 在测试开始前停止的运行不会写入上述文件，并保留上次运行的文件。包括配置或收集错误、`NO_TESTS`、`NO_LAST_RUN`、`UNSUPPORTED_ARTIFACT`、应用命令启动失败，以及中断。其错误通过终端和退出码体现。无法写入 `junit.xml` 或 `summary.md` 时，只会在 stderr 输出一行，绝不会成为运行错误。
 
-`list` 和 `dot` 报告器在 `Run Errors` 下输出运行错误。两者都不使用时，每个运行错误都会以 `CODE: message` 输出到 stderr，使用 `json` 时也如此。
+`list` 和 `dot` 报告器在 `Run Errors` 下输出运行错误。两者都不使用，也没有其他通过 [`onOutput`](/reference/reporters#onoutput) 输出到终端的报告器时，每个运行错误都会以 `CODE: message` 输出到 stderr，使用 `json` 时也如此。
 
 报告中的 `run.summary` 统计结果：
 

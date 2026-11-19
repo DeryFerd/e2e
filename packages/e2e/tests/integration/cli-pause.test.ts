@@ -17,7 +17,7 @@ import { setTimeout as sleep } from 'node:timers/promises';
 import { fileURLToPath } from 'node:url';
 import { stripVTControlCharacters } from 'node:util';
 import picocolors from 'picocolors';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi, type MockInstance } from 'vitest';
 import { SecretLedger } from '@e2e-dev/core/lib/internal/redact';
 import { stepAddress } from '../../src/run/step-socket.ts';
 import { fakeStdin } from '../helpers/fake-stdin.ts';
@@ -166,18 +166,29 @@ async function pausedRun(dir: string) {
   return run;
 }
 
-/** Captures output from the built runner in this process and waits for text in it. */
+/** Spies on this process's terminal streams while a run in it prints; restored after each test. */
+const terminalSpies: MockInstance[] = [];
+
+/**
+ * Captures output from the built runner in this process and waits for text
+ * in it: the runner's own, and what its reporters print to this process's
+ * streams.
+ */
 function terminalOutput() {
   let printed = '';
-  const write = (text: string): boolean => {
-    printed += text;
+  const write = (text: string | Uint8Array): boolean => {
+    printed += typeof text === 'string' ? text : Buffer.from(text).toString('utf8');
     return true;
   };
+  for (const stream of [process.stdout, process.stderr]) {
+    terminalSpies.push(vi.spyOn(stream, 'write').mockImplementation((chunk: string | Uint8Array) => write(chunk)));
+  }
   // Colors are on in this process when CI is set, so strip them before matching.
   const plain = (): string => stripVTControlCharacters(printed);
 
   return {
     processOutput: new RunnerOutput({ stdout: write, stderr: write }, new SecretLedger()),
+    write: (text: string): void => void write(text),
     printed: plain,
     shows: (text: string): Promise<void> => waitForText(plain, text),
   };
@@ -206,6 +217,9 @@ afterEach(async () => {
   for (const { stop, done } of inProcess.splice(0)) {
     stop();
     await done;
+  }
+  for (const spy of terminalSpies.splice(0)) {
+    spy.mockRestore();
   }
   const created = projects.splice(0);
 
@@ -809,8 +823,8 @@ export default {
           keys,
         ),
       stdin,
-      write: output.processOutput.listOutput.raw,
-      writeError: output.processOutput.listOutput.raw,
+      write: output.write,
+      writeError: output.write,
       pc: picocolors.createColors(false),
       clear: false,
       // Test the keys without file changes. On macOS, newly created project
@@ -862,8 +876,8 @@ export default {
           keys,
         ),
       stdin,
-      write: output.processOutput.listOutput.raw,
-      writeError: output.processOutput.listOutput.raw,
+      write: output.write,
+      writeError: output.write,
       pc: picocolors.createColors(false),
       clear: false,
       watch: () => ({ close: () => undefined, on: () => undefined }),

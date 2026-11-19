@@ -10,6 +10,7 @@ import { existsSync, readdirSync, statSync, watch as fsWatch } from 'node:fs';
 import path from 'node:path';
 import { Writable } from 'node:stream';
 import * as clack from '@clack/prompts';
+import { builtinId } from '../report/builtin-id.ts';
 import picocolors from 'picocolors';
 import { discoverConfig } from '../config/load.ts';
 import { compileGlob, compileGlobList, GLOB_SYNTAX, literalPrefix, matchesGlob, type CompiledGlobList } from '@e2e-dev/core/lib/internal/globs';
@@ -584,7 +585,7 @@ export async function watchSession(options: WatchSessionOptions): Promise<number
       }
       if (interrupt.signal.aborted) options.write(`\n${pc.yellow('run cancelled')}\n`);
       else exitCode = outcome.exitCode;
-      if (outcome.config?.reporters.includes('json') === true) {
+      if (outcome.config?.reporters.some((reporter) => builtinId(reporter) === 'json') === true) {
         options.writeError(`${pc.red('error')}: --watch cannot run with the json reporter the config sets: it writes one document to stdout\n`);
         return 2;
       }

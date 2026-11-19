@@ -6,7 +6,7 @@
 
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { BeforeStep, HeldStep, StepHoldContext } from '../../src/run/step-hold.ts';
 import { createFakeEngine, FAKE_APP } from '../helpers/fake-engine.ts';
 import {
@@ -592,12 +592,49 @@ describe('hold.ask ending a hold', () => {
   }, 60_000);
 
   it('refuses the json reporter, whose stdout the prompt would break', async () => {
-    const { outcome, project } = await runProjectWithConfigFile(
-      { 'tests/any.e2e.ts': `import { test } from 'e2e';\ntest('never runs', async () => {});\n` },
-      { configSource: workerFakeConfigSource(1, `\n  reporters: ['json'],`), runOptions: { hold: { ask: () => Promise.resolve(), steps: true } } },
-    );
-    project.cleanup();
-    expect(outcome.exitCode).toBe(2);
-    expect(outcome.report.run.errors[0]).toMatchObject({ code: 'INVALID_CONFIG', message: expect.stringContaining('--step') });
+    // Not quiet: a quiet run runs no reporter that claims stdout, so nothing would break.
+    const stdout = vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
+    try {
+      const { outcome, project } = await runProjectWithConfigFile(
+        { 'tests/any.e2e.ts': `import { test } from 'e2e';\ntest('never runs', async () => {});\n` },
+        { configSource: workerFakeConfigSource(1, `\n  reporters: ['json'],`), runOptions: { hold: { ask: () => Promise.resolve(), steps: true }, quiet: false } },
+      );
+      project.cleanup();
+      expect(outcome.exitCode).toBe(2);
+      expect(outcome.report.run.errors[0]).toMatchObject({ code: 'INVALID_CONFIG', message: expect.stringContaining('--step cannot run with the reporter "json"') });
+    } finally {
+      stdout.mockRestore();
+    }
+  }, 60_000);
+  it('prints the prompt itself while the step waits once the reporter showing it rejects', async () => {
+    const stderr: string[] = [];
+    const write = vi.spyOn(process.stderr, 'write').mockImplementation((chunk) => (stderr.push(String(chunk)), true));
+    const reporter = `{ name: 'broken-prompt', printsTo: 'stdout', async onStepPrompt() { throw new Error('PROMPT_BOOM'); } }`;
+    let shownWhileHeld = false;
+    try {
+      const { outcome, project } = await runProjectWithConfigFile(
+        { 'tests/held.e2e.ts': `import { test } from 'e2e';\ntest('waits', async ({ app }) => { await app.open('/held'); });\n` },
+        {
+          configSource: workerFakeConfigSource(1, `\n  reporters: [${reporter}],`),
+          runOptions: {
+            hold: {
+              steps: true,
+              ask: async (step, { show }) => {
+                show({ steps: [{ step, number: 1 }], help: false, holdSteps: true });
+                await sleep(200);
+                shownWhileHeld = stderr.some((text) => text.startsWith('paused at step 1 of waits'));
+                show(undefined);
+              },
+            },
+          },
+        },
+      );
+      project.cleanup();
+      expect(outcome.exitCode).toBe(0);
+    } finally {
+      write.mockRestore();
+    }
+    expect(stderr.filter((text) => text.includes('threw in onStepPrompt: PROMPT_BOOM'))).toHaveLength(1);
+    expect(shownWhileHeld).toBe(true);
   }, 60_000);
 });
