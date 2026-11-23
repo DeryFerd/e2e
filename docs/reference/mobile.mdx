@@ -835,7 +835,8 @@ await device.openApp('com.example.app', { relaunch: true, permissions: { camera:
  * observation brings the app back. Android starts the link on that
  * package. Without an app, Android lets the OS route the link; iOS needs
  * one (`INVALID_ARGUMENT` without). `file:`, `data:`, `javascript:`,
- * `view-source:`, `blob:`, and `filesystem:` links are `POLICY_DENIED`.
+ * `view-source:`, `blob:`, and `filesystem:` links are `POLICY_DENIED`, as
+ * is one in `app`, which names an app and not a link.
  */
 openLink(url: string, options?: { app?: string }): Promise<void>;
 ```
@@ -858,9 +859,9 @@ await expect(screen.getByText('Order #42')).toBeVisible();
 
 | Throws | When |
 | --- | --- |
-| `POLICY_DENIED` | A `file:`, `data:`, `javascript:`, `view-source:`, `blob:`, or `filesystem:` link. |
+| `POLICY_DENIED` | A `file:`, `data:`, `javascript:`, `view-source:`, `blob:`, or `filesystem:` link, as `url` or as `app`. |
 | `INVALID_ARGUMENT` | No app on iOS: an open bound to none leaves no app session to observe. |
-| `INVALID_ARGUMENT` | A string that does not parse as an absolute URL. The message names no part of the input, which may carry a magic-link token in its query, path, or userinfo. |
+| `INVALID_ARGUMENT` | A string that does not parse as an absolute URL, or any other link in `app`. The message names no part of the input, which may carry a magic-link token in its query, path, or userinfo. |
 
 #### `closeApp`
 

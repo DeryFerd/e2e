@@ -55,21 +55,37 @@ export function linkTarget(input: string): URL {
 }
 
 /**
- * Refuses a link handed to `openApp`, which opens an app by bundle id,
- * package, or display name. agent-device opens any `scheme:rest` string as
- * a URL, so the check runs before the device sees it: a link with a
- * forbidden scheme is `POLICY_DENIED` as it is for `openLink`, any
- * other link is `INVALID_ARGUMENT` pointing at `openLink`. The message
- * never echoes the link, whose query may carry a magic-link token.
+ * Refuses a `scheme:rest` string handed to an app-id argument. agent-device
+ * opens any such string as a URL, so the check runs before the device sees
+ * it: a link with a forbidden scheme is `POLICY_DENIED`, any other link is
+ * `INVALID_ARGUMENT` with the message the caller gives. The message never
+ * echoes the string, whose query may carry a magic-link token.
  */
-export function assertAppId(app: string): void {
+function refuseLinkAsApp(app: string, message: string): void {
   const link = LINK_SHAPE.exec(app.trim());
   if (link === null) return;
   denyForbiddenScheme(`${(link[1] ?? '').toLowerCase()}:`);
-  throw new TestError(
-    'INVALID_ARGUMENT',
-    'openApp opens an app by bundle id, package, or display name; open a deep link or web link with device.openLink',
-  );
+  throw new TestError('INVALID_ARGUMENT', message);
+}
+
+/**
+ * Refuses a link handed to `openApp`, which opens an app by bundle id,
+ * package, or display name. The message points at `openLink`, the call that
+ * opens a link.
+ */
+export function assertAppId(app: string): void {
+  refuseLinkAsApp(app, 'openApp opens an app by bundle id, package, or display name; open a deep link or web link with device.openLink');
+}
+
+/**
+ * Refuses a link handed to `openLink` as `app`, the app the link opens into.
+ * agent-device refuses `open <link> <url>` itself (`open <app> <url> requires
+ * an app target as the first argument`), which reached the runner as
+ * `ENGINE_FAILURE`; this check makes the mistake the caller's before any
+ * device command.
+ */
+export function assertLinkApp(app: string): void {
+  refuseLinkAsApp(app, 'app names an app by bundle id, package, or display name, not a link');
 }
 
 /** What the report shows for a link that did not parse, or an app id that looks like a link. */

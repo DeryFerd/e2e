@@ -2861,6 +2861,7 @@ describe('device fixture', () => {
     const before = h.fake.calls.length;
     for (const denied of ['file:///etc/passwd', 'data:text/html,hi', 'javascript:alert(1)', 'view-source:file:///etc/passwd']) {
       await expect(device.openLink(denied)).rejects.toMatchObject({ code: 'POLICY_DENIED' });
+      await expect(device.openLink('https://example.com/verify', { app: denied })).rejects.toMatchObject({ code: 'POLICY_DENIED' });
       await expect(device.openApp(denied)).rejects.toMatchObject({ code: 'POLICY_DENIED' });
     }
     for (const malformed of ['orders/42', '', 'https://']) {
@@ -2868,6 +2869,8 @@ describe('device fixture', () => {
     }
     for (const link of ['https://example.com/verify', 'myapp://orders/42']) {
       await expect(device.openApp(link, { relaunch: true })).rejects.toMatchObject({ code: 'INVALID_ARGUMENT' });
+      // agent-device refuses `open <link> <url>` itself; the guard makes it the caller's mistake before any device command.
+      await expect(device.openLink('https://example.com/verify', { app: link })).rejects.toMatchObject({ code: 'INVALID_ARGUMENT' });
     }
     expect(h.fake.calls.length).toBe(before);
     await device.openApp('com.apple.mobilesafari');

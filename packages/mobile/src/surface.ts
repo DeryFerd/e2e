@@ -66,7 +66,7 @@ import { DEVICE_PERMISSIONS, type AgentDeviceClient, type ClientFactory, type De
 import { maskPng } from './png.ts';
 import { mobileDoctor } from './doctor.ts';
 import { deviceLabel, pinnedApp, type SlotBinding } from './bindings.ts';
-import { assertAppId } from './links.ts';
+import { assertAppId, assertLinkApp } from './links.ts';
 import { bootRequest, DevicePool, deviceSelection, type DeviceSelection } from './pool.ts';
 import { recordLease, travelledLease, type DeviceLease, type RecordingDeviceProvider } from './provider.ts';
 import {
@@ -965,6 +965,7 @@ export class AgentDeviceSurface {
    * the OS told it; the next snapshot names the foreground app either way.
    */
   async openLink(url: URL, app: string | undefined, signal: AbortSignal, input?: InputBudget): Promise<void> {
+    if (app !== undefined) assertLinkApp(app);
     const target = app ?? this.pinnedApp;
     if (target === undefined && this.options.platform === 'ios') {
       throw new TestError(
