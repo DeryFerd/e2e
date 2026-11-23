@@ -118,7 +118,8 @@ export function kernel(options: KernelOptions = {}): BrowserProvider {
         );
         throw new Error(`browser ${browser.sessionId} arrived after the request was cancelled; ${outcome}`);
       }
-      request.log(browser.liveViewUrl === undefined ? `browser ${browser.sessionId}` : `browser ${browser.sessionId}, watch at ${browser.liveViewUrl}`);
+      // Never the live view URL: it carries tokens that act on the browser, and a run's log is often public CI output. The dashboard finds the browser by its run tags.
+      request.log(`browser ${browser.sessionId}`);
       return { id: browser.sessionId, cdpEndpoint: browser.cdpWsUrl };
     },
     async release(lease: BrowserLease, context: BrowserReleaseContext): Promise<void> {

@@ -16,7 +16,6 @@ export type KernelReplayParams = Kernel.Browsers.ReplayStartParams;
 interface KernelBrowser {
   readonly sessionId: string;
   readonly cdpWsUrl: string;
-  readonly liveViewUrl?: string | undefined;
 }
 
 export interface KernelBrowsers {
@@ -62,7 +61,7 @@ export function kernelBrowsers(apiKey: string): KernelBrowsers {
       request(async () => {
         const { client } = await sdk;
         const created = await client.browsers.create({ ...params, tags: { ...params.tags } }, { signal });
-        return { sessionId: created.session_id, cdpWsUrl: created.cdp_ws_url, liveViewUrl: created.browser_live_view_url };
+        return { sessionId: created.session_id, cdpWsUrl: created.cdp_ws_url };
       }),
     delete: (sessionId, signal) =>
       request(async () => {

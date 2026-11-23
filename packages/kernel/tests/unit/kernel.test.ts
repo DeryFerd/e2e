@@ -1,7 +1,7 @@
 /**
  * `kernel()` against a mocked `@onkernel/sdk`: the create body and its tags,
- * the live view line, delete on release and after a cancelled request, a
- * browser Kernel no longer knows, one SDK client per API key, and replays.
+ * the id line, delete on release and after a cancelled request, a browser
+ * Kernel no longer knows, one SDK client per API key, and replays.
  */
 
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
@@ -23,7 +23,7 @@ const sdk = vi.hoisted(() => {
     downloadFailures: 0,
     create: async (_body: unknown): Promise<unknown> => {
       state.counter += 1;
-      return { session_id: `b${state.counter}`, cdp_ws_url: `wss://kernel/b${state.counter}`, browser_live_view_url: `https://view/b${state.counter}` };
+      return { session_id: `b${state.counter}`, cdp_ws_url: `wss://kernel/b${state.counter}` };
     },
     deleteByID: async (_id: string): Promise<void> => undefined,
     files: [] as { id: string; path: string; signal: AbortSignal | undefined }[],
@@ -112,14 +112,15 @@ function releaseContext(): BrowserReleaseContext {
 }
 
 describe('kernel()', () => {
-  it('creates a browser with the run tags and the idle timeout backstop, and logs its live view', async () => {
+  it('creates a browser with the run tags and the idle timeout backstop, and logs only its id', async () => {
     const req = request({ slot: 1 });
     const lease = await kernel({ stealth: true, tags: { team: 'qa' } }).acquire(req);
     expect(lease).toEqual({ id: 'b1', cdpEndpoint: 'wss://kernel/b1' });
     expect(sdk.state.created).toEqual([
       { body: { stealth: true, timeout_seconds: 600, tags: { team: 'qa', e2e_run: 'run-1', e2e_target: 'web', e2e_slot: '1' } }, signal: req.signal },
     ]);
-    expect(req.lines).toEqual(['browser b1, watch at https://view/b1']);
+    // The live view URL carries tokens that act on the session, so it never enters the run's log.
+    expect(req.lines).toEqual(['browser b1']);
   });
 
   it('keeps the idle timeout backstop for an undefined option from a JavaScript config', async () => {

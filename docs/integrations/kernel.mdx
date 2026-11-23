@@ -118,10 +118,11 @@ artifacts.
 
 ## Watch and clean up browsers
 
-The reporter logs `browser <id>, watch at <live view URL>` for each new
-browser. Each browser carries the tags `e2e_run`, `e2e_target`, `e2e_slot`,
-and `e2e_attempt` in `'attempt'` scope, on top of your `tags`. Kernel's
-dashboard then names the run that started it.
+The reporter logs `browser <id>` for each new browser. The live view URL
+stays out of the log: it carries tokens that act on the session, and a run's
+log is often public CI output. Each browser carries the tags `e2e_run`,
+`e2e_target`, `e2e_slot`, and `e2e_attempt` in `'attempt'` scope, on top of
+your `tags`. Kernel's dashboard then names the run that started it.
 
 When the run ends, the provider deletes every active browser tagged with the
 run and target, including the browser of a worker that died. If the run

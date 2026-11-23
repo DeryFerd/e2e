@@ -90,7 +90,7 @@ Kernel 只支持以默认的有头模式运行的浏览器回放。设置 `headl
 
 ## 查看和清理浏览器
 
-报告器会为每个新浏览器记录 `browser <id>, watch at <live view URL>`。除了你的 `tags`，每个浏览器还带有 `e2e_run`、`e2e_target`、`e2e_slot` 标签，在 `'attempt'` 作用域中还会带有 `e2e_attempt`。这样，Kernel 控制台就能标明启动该浏览器的运行。
+报告器会为每个新浏览器记录 `browser <id>`。除了你的 `tags`，每个浏览器还带有 `e2e_run`、`e2e_target`、`e2e_slot` 标签，在 `'attempt'` 作用域中还会带有 `e2e_attempt`。这样，Kernel 控制台就能标明启动该浏览器的运行。
 
 运行结束时，提供方会删除所有带有本次运行和测试目标标签的活动浏览器，包括已终止工作进程的浏览器。如果运行本身先终止，Kernel 会在每个浏览器空闲 `timeout_seconds` 秒后将其删除；除非你另行设置，否则该值为 600。
 
