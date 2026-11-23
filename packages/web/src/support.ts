@@ -333,6 +333,7 @@ export function isTestErrorCode(cause: unknown, code: string): cause is Error & 
  * | strict mode violation, log ends before the input dispatch       | NODE_STALE (retryable)    |
  * | strict mode violation, log shows the dispatch started           | ACTION_MAY_HAVE_COMMITTED |
  * | not an input / not editable / not checkable                     | NOT_ACTIONABLE            |
+ * | a selector Playwright cannot parse                             | INVALID_LOCATOR           |
  * | anything else                                                   | ENGINE_FAILURE            |
  *
  * The action split is read from the call log Playwright appends to a timeout
@@ -367,10 +368,37 @@ export function translatePwError(cause: unknown, operation: string): Error {
       cause,
     });
   }
+  if (isSelectorParseError(cause)) {
+    return new TestError('INVALID_LOCATOR', `${operation} failed: ${message(cause)}`, { cause });
+  }
   return new EngineError('ENGINE_FAILURE', `${operation} failed: ${message(cause)}`, {
     retryable: false,
     cause,
   });
+}
+
+/**
+ * Whether Playwright refused to parse the selector it was given. A selector
+ * is parsed lazily, inside the call that first uses it, so a typo (`button[`,
+ * `nope=x`, `div >>`) arrives as an ordinary error naming the phrase below
+ * rather than as a validation step of its own. `Malformed selector:` and the
+ * `while parsing selector` phrases are Playwright's own; the unknown-engine
+ * message already contains the latter.
+ */
+const SELECTOR_PARSE_PATTERN = /while parsing (?:css )?selector|Malformed selector:/i;
+
+/**
+ * The browser's XPath parser and JavaScript's regex parser report a bad
+ * `xpath=` or `text=/.../` with a generic message, so the locator call
+ * Playwright prefixes keeps an unrelated `Invalid regular expression` or
+ * XPath failure out of `INVALID_LOCATOR`.
+ */
+const LOCATOR_EXPRESSION_PARSE_PATTERN = /\blocator\.\w+:.*(?:is not a valid XPath expression|Invalid regular expression)/i;
+
+/** Whether a failure is the engine refusing a selector it cannot parse, a test-code mistake rather than an engine fault. */
+export function isSelectorParseError(cause: unknown): boolean {
+  const text = message(cause);
+  return SELECTOR_PARSE_PATTERN.test(text) || LOCATOR_EXPRESSION_PARSE_PATTERN.test(text);
 }
 
 const STALE_PATTERN = /detached|not attached|resolved to hidden|no element|not found/i;
@@ -447,6 +475,8 @@ export function navigationStaleOr(cause: unknown, operation: string): Error {
  */
 export function staleOr(cause: unknown, operation: string): Error {
   if (isClassified(cause) || isPwTimeout(cause)) return translatePwError(cause, operation);
+  // Before the stale words are read: an unparsable selector is a test-code mistake whatever else its message says.
+  if (isSelectorParseError(cause)) return translatePwError(cause, operation);
   const text = message(cause);
   if (STALE_PATTERN.test(text) || isNavigationRace(cause)) {
     return new EngineError('NODE_STALE', `${operation}: ${text}`, { retryable: true, cause });

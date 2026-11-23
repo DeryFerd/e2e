@@ -191,5 +191,5 @@ These appear in terminal output and in the report as plain string codes.
 | Code | When it happens | Class | Exit |
 | --- | --- | --- | ---: |
 | `INVALID_ARGUMENT` | Argument validation in test code refused an argument | test | 1 |
-| `INVALID_LOCATOR` | Argument validation in test code refused a locator's arguments | test | 1 |
+| `INVALID_LOCATOR` | Argument validation in test code refused a locator's arguments, or the engine could not parse the selector it was given (a malformed CSS selector, `xpath=`, `text=/(/`, an unknown engine) | test | 1 |
 | `ERROR` | A value thrown from test code that no other code classifies | test | 1 |

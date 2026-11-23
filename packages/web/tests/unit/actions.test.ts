@@ -91,6 +91,18 @@ describe('classifyActionError', () => {
     expect(error.message).toContain('tap did not become actionable');
   });
 
+  it('maps a selector Playwright cannot parse to INVALID_LOCATOR, not an engine fault', () => {
+    const raw = new Error('locator.click: Unknown engine "nope" while parsing selector "nope=button"');
+    const error = classifyActionError(raw, TAP);
+    expect(error).toMatchObject({ code: 'INVALID_LOCATOR', category: 'test', cause: raw });
+    expect(error.message).toBe('tap failed: locator.click: Unknown engine "nope" while parsing selector "nope=button"');
+  });
+
+  it('decides an unparsable selector before the message-shaped branches that would call it stale', () => {
+    const error = classifyActionError(new Error('locator.click: Unknown engine "nope" while parsing selector "nope=not found"'), TAP);
+    expect(error).toMatchObject({ code: 'INVALID_LOCATOR', category: 'test' });
+  });
+
   it('cuts a not-actionable timeout to its headline and the last blocker the log names', () => {
     const covered = [
       ...PRE_DISPATCH_LOG.slice(0, 4),

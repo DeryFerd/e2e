@@ -7,6 +7,7 @@ import {
   isClassified,
   isNavigationRace,
   isPwTimeout,
+  isSelectorParseError,
   message,
   nearestPixel,
   performElementSwipe,
@@ -503,6 +504,10 @@ export function classifyActionError(rawCause: unknown, action: LocatorAction): E
   if (isClassified(rawCause)) return rawCause;
   const text = redactSensitive(message(rawCause), action);
   const cause = isSensitive(action) ? undefined : rawCause;
+  // A selector the engine cannot parse says nothing about the element, so it is decided before every message-shaped branch: a selector that happens to contain "not found" or "not editable" is not read as stale or unactionable.
+  if (isSelectorParseError(rawCause)) {
+    return new TestError('INVALID_LOCATOR', `${action.kind} failed: ${text}`, cause === undefined ? {} : { cause });
+  }
   if (/strict mode violation/i.test(text)) {
     if (POST_DISPATCH_PATTERN.test(text)) {
       return new EngineError(

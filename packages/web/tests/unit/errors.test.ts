@@ -58,6 +58,36 @@ describe('translatePwError', () => {
     const error = translatePwError(pwTimeout('waiting for locator'), 'observe');
     expect(error).toMatchObject({ code: 'OPERATION_TIMEOUT', retryable: false });
   });
+
+  it('maps a selector Playwright cannot parse to a test-code INVALID_LOCATOR, not an engine fault', () => {
+    for (const text of [
+      'locator.evaluateAll: Unexpected token "" while parsing css selector "button[type="submit"". Did you mean to CSS.escape it?',
+      'Unknown engine "nope" while parsing selector "nope=button"',
+      'Malformed selector: >>',
+      "locator.count: SyntaxError: Failed to execute 'evaluate' on 'Document': The string '//[' is not a valid XPath expression.",
+      'locator.count: SyntaxError: Invalid regular expression: /(/: Unterminated group',
+    ]) {
+      const error = translatePwError(new Error(text), 'locate');
+      expect(error).toMatchObject({ code: 'INVALID_LOCATOR', category: 'test' });
+      expect(error.message).toBe(`locate failed: ${text}`);
+    }
+  });
+
+  it('reads an unparsable selector as INVALID_LOCATOR before the stale words in its message', () => {
+    const error = staleOr(new Error('locator.count: Unknown engine "nope" while parsing selector "nope=gone" not found'), 'locate');
+    expect(error).toMatchObject({ code: 'INVALID_LOCATOR', category: 'test' });
+  });
+
+  it('keeps a generic XPath or regex failure outside a locator call an engine fault', () => {
+    for (const text of [
+      "SyntaxError: Failed to execute 'evaluate' on 'Document': The string '//[' is not a valid XPath expression.",
+      'SyntaxError: Invalid regular expression: /(/: Unterminated group',
+    ]) {
+      const error = translatePwError(new Error(text), 'evaluate');
+      expect(error).toBeInstanceOf(EngineError);
+      expect((error as EngineError).code).toBe('ENGINE_FAILURE');
+    }
+  });
 });
 
 describe('isTestErrorCode', () => {
