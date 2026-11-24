@@ -90,9 +90,21 @@ async function listXaiModels(fetch: FetchFunction, url: string): Promise<Subscri
   });
 }
 
-/** Expiry from the JWT when it carries one, else from `expires_in`; a refresh without a new refresh token keeps the old one. */
+/**
+ * Expiry from the JWT when it names a time still ahead, else from
+ * `expires_in`; a refresh without a new refresh token keeps the old one.
+ * A JWT whose `exp` is past or absurd would otherwise make every request
+ * refresh (or never), so it is ignored in favour of the server's answer.
+ */
 function toCredentials(tokens: TokenResponse, previousRefresh: string): OAuthCredentials {
-  const exp = decodeJwtPayload(tokens.access_token)?.['exp'];
-  const expires = typeof exp === 'number' && exp > 0 ? exp * 1000 : expiryFrom(tokens.expires_in);
+  const expires = jwtExpiry(tokens.access_token, Date.now()) ?? expiryFrom(tokens.expires_in);
   return { access: tokens.access_token, refresh: tokens.refresh_token ?? previousRefresh, expires };
+}
+
+/** The expiry a token's `exp` claim names, when it is a finite time still ahead of `now`; `undefined` otherwise. */
+function jwtExpiry(access: string, now: number): number | undefined {
+  const exp = decodeJwtPayload(access)?.['exp'];
+  if (typeof exp !== 'number' || !Number.isFinite(exp) || exp <= 0) return undefined;
+  const expires = exp * 1000;
+  return expires > now ? expires : undefined;
 }

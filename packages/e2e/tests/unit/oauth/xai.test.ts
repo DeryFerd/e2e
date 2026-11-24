@@ -39,6 +39,23 @@ describe('SpaceXSI login', () => {
     expect(issuer.requests.map((request) => request.headers['user-agent'])).toEqual([USER_AGENT, USER_AGENT, USER_AGENT, USER_AGENT]);
   });
 
+  it('falls back to expires_in when the JWT exp is already in the past', async () => {
+    const past = Math.floor(Date.now() / 1000) - 60;
+    const issuer = await serve((request, response) => {
+      const form = new URLSearchParams(request.body);
+      if (request.url === '/oauth2/device/code') {
+        return json(response, 200, { device_code: 'dc', user_code: 'ABCD-EFGH', verification_uri: 'https://accounts.x.ai/oauth2/device', verification_uri_complete: 'https://accounts.x.ai/oauth2/device?user_code=ABCD-EFGH', expires_in: 1800, interval: 0.001 });
+      }
+      expect(form.get('grant_type')).toBe('urn:ietf:params:oauth:grant-type:device_code');
+      json(response, 200, { access_token: fakeJwt({ exp: past }), refresh_token: 'rt-1', expires_in: 900 });
+    });
+    const provider = createXaiProvider({ issuer: issuer.url });
+    const before = Date.now();
+    const credentials = await onFakeTimeouts(() => provider.login({ onAuth: () => undefined, onPrompt: async () => '' }));
+    expect(credentials.access).toBe(fakeJwt({ exp: past }));
+    expect(credentials.expires).toBeGreaterThan(before + 800_000);
+  });
+
   it('refreshes with rotation and keeps the old refresh token when none is returned', async () => {
     let rotate = true;
     const issuer = await serve((request, response) => {
