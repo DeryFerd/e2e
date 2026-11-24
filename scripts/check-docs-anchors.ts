@@ -187,6 +187,11 @@ for (const { source, destination } of config.redirects ?? []) {
 if (problems.length > 0) {
   process.stderr.write(`${problems.join('\n')}\n`);
   process.exitCode = 1;
+} else if (checked === 0) {
+  // Every other check in `pnpm check` fails rather than passes when it read nothing, so a walker
+  // that stops matching a docs tree cannot report success over links it never looked at.
+  process.stderr.write(`docs anchors: read ${String(all.length)} page(s) and checked no anchor; the link walker matched nothing\n`);
+  process.exitCode = 1;
 } else {
   process.stdout.write(`docs anchors: ${checked} anchor links across ${all.length} pages resolve\n`);
 }
