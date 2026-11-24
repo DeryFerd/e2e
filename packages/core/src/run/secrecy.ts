@@ -190,8 +190,8 @@ const PROVIDER_KEY_NAME = /^[A-Za-z0-9_.-]+$/;
 interface ProviderKeys {
   /** By name and value. Only ever added to, so its size says when it changed. */
   readonly values: Map<string, readonly [string, string]>;
-  /** The names and values no pattern could be built for, which are not redacted. */
-  readonly refused: Set<string>;
+  /** The names and values no pattern could be built for: redacted literally, whole values only. */
+  readonly refused: Map<string, readonly [string, string]>;
 }
 
 const providerKeySlot = realmSlot<ProviderKeys>('e2e.providerKeys.v1');
@@ -199,7 +199,7 @@ const providerKeySlot = realmSlot<ProviderKeys>('e2e.providerKeys.v1');
 function providerKeys(): ProviderKeys {
   let state = providerKeySlot.get(globalThis);
   if (state === undefined) {
-    state = { values: new Map(), refused: new Set() };
+    state = { values: new Map(), refused: new Map() };
     providerKeySlot.set(globalThis, state);
   }
   return state;
@@ -210,8 +210,8 @@ function providerKeys(): ProviderKeys {
  * now on: a key a model provider or an agent signs in with, which is not a
  * secret of the app. Trimmed, as a provider reads it. A value shorter than
  * `MIN_PROVIDER_KEY_LENGTH` or longer than `MAX_PROVIDER_KEY_LENGTH` is left
- * alone, as is one no pattern can be built for, and one that is no string,
- * as an unset variable is. `name`
+ * alone, as is one that is no string, as an unset variable is; a value no
+ * pattern can be built for is redacted literally, whole values only. `name`
  * is what the marker shows: letters, digits, `_`, `.`, and `-`.
  */
 export function registerProviderKey(name: string, value: string | null | undefined): void {
@@ -235,7 +235,7 @@ function registerKey(name: string, value: string | null | undefined): void {
     // Alone first: a value no pattern can hold (what counts depends on its characters, not only its length) would stop every ledger in the process.
     createRedactor([[name, key]]);
   } catch {
-    state.refused.add(id);
+    state.refused.set(id, [name, key]);
     return;
   }
   state.values.set(id, [name, key]);
@@ -246,21 +246,26 @@ export function registerProviderKeys(env: Readonly<Record<string, string | undef
   for (const name of PROVIDER_KEY_VARIABLES) registerKey(name, env[name]);
 }
 
+/** Provider keys no pattern could hold, redacted literally by every ledger in the process. */
+const refusedProviderKeys = (): readonly (readonly [string, string])[] => [...providerKeys().refused.values()];
+
 const beside: SecretsBeside = {
   get revision() {
-    return shared().revision + providerKeys().values.size;
+    return shared().revision + providerKeys().values.size + providerKeys().refused.size;
   },
   values: () => [...shared().values.values()].map((held) => held.entry),
   providerKeys: () => [...providerKeys().values.values()],
+  refusedProviderKeys,
 };
 
 /** The provider keys alone, for a ledger that shares no session's values. */
 const besideStatic: SecretsBeside = {
   get revision() {
-    return providerKeys().values.size;
+    return providerKeys().values.size + providerKeys().refused.size;
   },
   values: () => [],
   providerKeys: beside.providerKeys,
+  refusedProviderKeys,
 };
 
 /**

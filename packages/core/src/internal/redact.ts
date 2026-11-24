@@ -33,6 +33,10 @@ interface Compiled {
   readonly redactFragments: (text: string) => string;
   /** Every occurrence of every value, leftmost first and never overlapping: the matches `redact` rewrites. Absent with no values. */
   readonly pattern: RegExp | undefined;
+  /** Values no pattern could hold, matched literally, longest first. A provider key registered that way stays redacted. */
+  readonly literals: readonly (readonly [string, string])[];
+  /** The longest literal value; 0 when there is none. */
+  readonly maxLiteralLength: number;
   /** The most text one occurrence can span; a piece shorter than this holds at most part of one. */
   readonly maxFormLength: number;
   /** The longest marker of a known name; a marker cut short at that length or beyond cannot complete into one. */
@@ -62,30 +66,51 @@ const MARKER_NAME = /^[A-Za-z0-9_.-]*$/;
  * per-character case forms leave out: a sigma lower-cased at the end of a
  * word, a titlecase digraph.
  */
-function compile(values: readonly (readonly [string, string])[], wholeOnly: ReadonlySet<readonly [string, string]> = new Set()): Compiled {
+/** `text` with every literal value, whole only, replaced by its marker; longest first, so a nested value is not half rewritten. */
+function replaceLiterals(text: string, literals: readonly (readonly [string, string])[]): string {
+  let out = text;
+  for (const [name, value] of literals) if (out.includes(value)) out = out.split(value).join(`${MARKER_OPEN}${name}>`);
+  return out;
+}
+
+function compile(
+  values: readonly (readonly [string, string])[],
+  wholeOnly: ReadonlySet<readonly [string, string]> = new Set(),
+  refused: readonly (readonly [string, string])[] = [],
+): Compiled {
   const entries = values.filter(([, value]) => value.length > 0).toSorted((a, b) => b[1].length - a[1].length);
+  // A value no pattern could hold is matched literally, whole only, longest first. It is a provider key:
+  // dropping it would leave it unredacted everywhere this ledger speaks.
+  const literals = [...new Map(refused.filter(([, value]) => value.length > 0).map(([name, value]) => [`${name}\0${value}`, [name, value] as const])).values()].toSorted((a, b) => b[1].length - a[1].length);
+  const maxLiteralLength = literals[0]?.[1].length ?? 0;
+  const spansLiteralLines = (): boolean => literals.some(([, value]) => value.includes('\n') || /\s/.test(value.trim()));
   if (entries.length === 0) {
+    const literalRedact = (text: string): string => replaceLiterals(text, literals);
     return {
-      redact: (text) => text,
-      redactCut: (text) => text,
-      redactFragments: (text) => text,
+      redact: literalRedact,
+      redactCut: literalRedact,
+      redactFragments: literalRedact,
       pattern: undefined,
-      maxFormLength: 0,
+      literals,
+      maxLiteralLength,
+      maxFormLength: maxLiteralLength,
       maxMarkerLength: 0,
-      spansLines: false,
+      spansLines: spansLiteralLines(),
     };
   }
   const markers = entries.map(([name]) => `${MARKER_OPEN}${name}>`);
   const known = markerPattern(entries.map(([name]) => name));
   const patterns = entries.map(([, value]) => valuePattern(value));
   const pattern = valuesPattern(patterns.map(({ source }) => `(${source})`).join('|'));
-  const rewrite = (text: string): string =>
-    text.replace(pattern, (_occurrence: string, ...groups: unknown[]) => {
+  const rewrite = (text: string): string => {
+    const replaced = text.replace(pattern, (_occurrence: string, ...groups: unknown[]) => {
       for (let index = 0; index < markers.length; index += 1) {
         if (groups[index] !== undefined) return markers[index] ?? '';
       }
       return '';
     });
+    return replaceLiterals(replaced, literals);
+  };
   // Every marker starts with `MARKER_OPEN`, so text without it has none to cut out. Otherwise
   // `split` on a capturing pattern returns the markers at the odd indexes; those pass through untouched.
   const redact = (text: string): string =>
@@ -138,9 +163,11 @@ function compile(values: readonly (readonly [string, string])[], wholeOnly: Read
     redactCut,
     redactFragments,
     pattern,
-    maxFormLength: Math.max(...patterns.map(({ maxLength }) => maxLength)),
+    literals,
+    maxLiteralLength,
+    maxFormLength: Math.max(maxLiteralLength, ...patterns.map(({ maxLength }) => maxLength)),
     maxMarkerLength: Math.max(...markers.map((marker) => marker.length)),
-    spansLines: entries.some(([, value]) => value.includes('\n') || /\s/.test(value.trim())),
+    spansLines: spansLiteralLines() || entries.some(([, value]) => value.includes('\n') || /\s/.test(value.trim())),
   };
 }
 
@@ -623,6 +650,12 @@ export interface SecretsBeside {
    * match whole values only, including when the runner scans a download.
    */
   providerKeys(): SecretList;
+  /**
+   * Provider keys no pattern could be built for: matched literally, whole
+   * values only, so a key the pattern cannot hold still never reaches text
+   * the ledger writes.
+   */
+  refusedProviderKeys?(): SecretList;
 }
 
 /** For a ledger that stands alone. */
@@ -678,7 +711,8 @@ export class SecretLedger {
 
   /** Whether the ledger redacts anything at all: its own values, the ones beside it, or a provider key. */
   get redactsAnything(): boolean {
-    return this.compile().pattern !== undefined;
+    const compiled = this.compile();
+    return compiled.pattern !== undefined || compiled.maxLiteralLength > 0;
   }
 
   /** Bound so it can be handed out as a plain function. */
@@ -746,12 +780,21 @@ export class SecretLedger {
    * cut's own line: a stream of finished lines is searched once, by `redact`.
    */
   holdFrom(text: string): number {
-    const { pattern, spansLines, maxFormLength, maxMarkerLength } = this.compile();
-    if (pattern === undefined) return text.length;
+    const { pattern, literals, maxLiteralLength, spansLines, maxFormLength, maxMarkerLength } = this.compile();
+    if (pattern === undefined) return maxLiteralLength === 0 ? text.length : Math.max(0, text.length - (maxLiteralLength - 1));
     const lineStart = spansLines ? 0 : text.lastIndexOf('\n') + 1;
     let cut = Math.max(lineStart, text.length - (maxFormLength - 1));
     // An unfinished marker holds no line break, so the cut stays on the line that starts at `lineStart`.
     cut = unfinishedMarkerBefore(text, cut, maxMarkerLength);
+    // A literal value (a provider key no pattern could hold) crossing the cut moves it back to its start.
+    for (const [, value] of literals) {
+      for (let at = text.indexOf(value, Math.max(0, cut - value.length + 1)); at !== -1 && at < cut; at = text.indexOf(value, at + 1)) {
+        if (at + value.length > cut) {
+          cut = at;
+          break;
+        }
+      }
+    }
     if (cut === 0 || cut === text.length) return cut;
     if (!spansLines && text.charCodeAt(cut - 1) === 0x0a) return cut;
     pattern.lastIndex = lineStart;
@@ -765,7 +808,7 @@ export class SecretLedger {
     this.sync();
     // A provider key that is also a secret of the run comes after it here, so the run's name and its fragments win.
     const keys = this.beside.providerKeys();
-    this.compiled ??= compile([...this.appValues(), ...keys], new Set(keys));
+    this.compiled ??= compile([...this.appValues(), ...keys], new Set(keys), this.beside.refusedProviderKeys?.() ?? []);
     return this.compiled;
   }
 
