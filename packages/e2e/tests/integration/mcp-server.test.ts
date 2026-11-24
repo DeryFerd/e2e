@@ -11,7 +11,7 @@
  * corrupt the protocol.
  */
 
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Client } from '@modelcontextprotocol/client';
@@ -373,6 +373,19 @@ describe('e2e mcp', { timeout: 120_000 }, () => {
       expect(refused.text, outside).toContain('POLICY_DENIED');
     }
     expect(existsSync(path.join(project.dir, '..', 'outside.png'))).toBe(false);
+
+    // A call only writes a `.png` path, so the file it can replace is one already named that
+    // way. A file that is not a PNG is refused, so a page cannot trade a project file for an
+    // image; a path that already holds a screenshot is a fresh capture of it, which stays allowed.
+    const logo = path.join(project.dir, 'assets', 'logo.png');
+    mkdirSync(path.dirname(logo), { recursive: true });
+    writeFileSync(logo, 'not a screenshot');
+    const overwrite = await call('screenshot', { path: 'assets/logo.png' });
+    expect(overwrite.isError).toBe(true);
+    expect(overwrite.text).toContain('POLICY_DENIED');
+    expect(readFileSync(logo, 'utf8')).toBe('not a screenshot');
+    const recaptured = await call('screenshot', { path: 'shots/after-fill.png' });
+    expect(recaptured.isError, recaptured.text).toBe(false);
 
     for (const url of ['javascript:alert(1)', 'file:///etc/passwd', 'view-source:file:///etc/passwd', 'VIEW-SOURCE:http://example.test/', 'about:srcdoc']) {
       const denied = await call('navigate', { url });

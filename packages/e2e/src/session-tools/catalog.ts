@@ -14,7 +14,7 @@
  * the testing agent's toolset applies.
  */
 
-import { copyFileSync, mkdirSync, rmSync } from 'node:fs';
+import { closeSync, copyFileSync, existsSync, mkdirSync, openSync, readSync, rmSync } from 'node:fs';
 import path from 'node:path';
 import type { ToolSet } from 'ai';
 import { z } from 'zod';
@@ -130,11 +130,30 @@ export function createSessionCatalog(options: CatalogOptions): SessionCatalog {
   return { tools: { ...builtIn, ...project }, readOnly, project: new Set(Object.keys(project)), context, lines };
 }
 
+/** The first bytes of a PNG, the only kind of file a screenshot path may replace. */
+const PNG_SIGNATURE = [0x89, 0x50, 0x4e, 0x47] as const;
+
+/** Whether `file` starts with the PNG signature, read as four bytes so a large file is never loaded. */
+function startsWithPngSignature(file: string): boolean {
+  const header = Buffer.alloc(PNG_SIGNATURE.length);
+  try {
+    const handle = openSync(file, 'r');
+    try {
+      readSync(handle, header, 0, header.length, 0);
+    } finally {
+      closeSync(handle);
+    }
+  } catch {
+    return false;
+  }
+  return PNG_SIGNATURE.every((byte, index) => header[index] === byte);
+}
+
 /**
  * Saves the engine's masked screenshot, the one `app.screenshot` keeps, to
  * `file` resolved against the project root, and returns the absolute path.
  * As with `upload`, a path outside the project or under a hidden directory
- * is refused.
+ * is refused, and so is a file that already exists unless it is a screenshot.
  */
 async function saveScreenshot(
   options: Pick<CatalogOptions, 'projectRoot' | 'session' | 'locator' | 'redaction'>,
@@ -149,6 +168,11 @@ async function saveScreenshot(
   }
   if (options.redaction.redact(relative) !== relative) {
     throw new ConfigurationError('POLICY_DENIED', 'screenshot paths cannot contain a secret value');
+  }
+  // Only a file that is itself a screenshot may be replaced. Without this, a page that
+  // names a project file turned it into an image, and the report kept no copy of either.
+  if (existsSync(destination) && !startsWithPngSignature(destination)) {
+    throw new ConfigurationError('POLICY_DENIED', `${JSON.stringify(file)} already exists and is not a screenshot; save to another path`);
   }
 
   const source = path.join(
