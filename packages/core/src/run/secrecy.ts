@@ -104,10 +104,12 @@ function share(entries: SecretList): Sharing {
 }
 
 /**
- * The variables a model provider or a coding agent reads its key from: the
- * AI SDK providers `e2e init` writes, the gateways, and the agents
- * `@e2e-dev/acp` starts. A closed list, not a pattern over names: a value
- * redacted from every report must be one the run is known to sign in with.
+ * The variables a model provider, a coding agent, or a hosted integration
+ * reads its key from: the AI SDK providers `e2e init` writes, the gateways,
+ * the agents `@e2e-dev/acp` starts, and the integration packages documented
+ * under `docs/integrations/`. A closed list, not a pattern over names: a
+ * value redacted from every report must be one the run is known to sign in
+ * with.
  */
 const PROVIDER_KEY_VARIABLES = [
   'AIHUBMIX_API_KEY',
@@ -120,16 +122,20 @@ const PROVIDER_KEY_VARIABLES = [
   'AWS_BEARER_TOKEN_BEDROCK',
   'AZURE_API_KEY',
   'BASETEN_API_KEY',
+  'BROWSERSTACK_ACCESS_KEY',
   'CENCORI_API_KEY',
   'CEREBRAS_API_KEY',
   'CHEAPER_INFERENCE_API_KEY',
   'CLARIFAI_PAT',
+  'CLOUDFLARE_API_TOKEN',
   'CLAUDE_CODE_OAUTH_TOKEN',
   'CODEX_API_KEY',
   'COHERE_API_KEY',
   'CRUSOE_API_KEY',
   'DEEPINFRA_API_KEY',
   'DEEPSEEK_API_KEY',
+  'E2B_API_KEY',
+  'EXPO_TOKEN',
   'FIREWORKS_API_KEY',
   'FRIENDLI_TOKEN',
   'GMI_CLOUD_APIKEY',
@@ -139,20 +145,29 @@ const PROVIDER_KEY_VARIABLES = [
   'HUGGINGFACE_API_KEY',
   'INFERENCE_KEY',
   'INTERFAZE_API_KEY',
+  'KERNEL_API_KEY',
+  'LIGHTPANDA_PAT',
+  'LIMRUN_API_KEY',
+  'LIM_API_KEY',
   'LLM_API_KEY',
+  'LT_ACCESS_KEY',
   'MINIMAX_API_KEY',
   'MISTRAL_API_KEY',
   'MODELRUSH_API_KEY',
+  'MOLI_PAT',
   'MOONSHOT_API_KEY',
   'NEARAI_API_KEY',
   'NEON_AI_GATEWAY_TOKEN',
   'NIM_API_KEY',
+  'NOTTE_API_KEY',
   'OLLM_API_KEY',
   'OPENAI_API_KEY',
   'OPENCODE_API_KEY',
   'OPENROUTER_API_KEY',
+  'REVYL_API_KEY',
   'RUNPOD_API_KEY',
   'SAMBANOVA_API_KEY',
+  'SMOL_CLOUD_TOKEN',
   'TELNYX_API_KEY',
   'TOGETHER_API_KEY',
   'VERCEL_OIDC_TOKEN',

@@ -251,14 +251,17 @@ agent's `system`, and an `e2e explore` goal.
 
 ### Provider keys
 
-The keys your model provider or coding agent signs in with are redacted from
-the terminal, reports, trace pages, and what the run sends the model of
-the screen, tool results, the model's own prose, and a `system` text a config writes, of the built-in agent or of `acp()`. A provider or proxy that quotes a rejected key back in its error
-can't put it in a report. Each shows as `<secret:NAME>`.
+The keys your model provider, coding agent, or hosted service signs in with
+are redacted from the terminal, reports, trace pages, and what the run sends
+the model of the screen, tool results, the model's own prose, and a `system`
+text a config writes, of the built-in agent or of `acp()`. A provider or proxy
+that quotes a rejected key back in its error can't put it in a report. Each
+shows as `<secret:NAME>`.
 
 | Source | Name in the marker |
 | --- | --- |
 | The key variable of each [model provider](/models), such as `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `AI_GATEWAY_API_KEY`, and `OPENROUTER_API_KEY`, plus `ANTHROPIC_AUTH_TOKEN`, `CLAUDE_CODE_OAUTH_TOKEN`, `CODEX_API_KEY`, `LLM_API_KEY`, `OPENCODE_API_KEY`, and `VERCEL_OIDC_TOKEN`, in the environment of the run or of an `acp()` agent | The variable |
+| The token of a [hosted service](/integrations): `BROWSERSTACK_ACCESS_KEY`, `CLOUDFLARE_API_TOKEN`, `E2B_API_KEY`, `EXPO_TOKEN`, `KERNEL_API_KEY`, `LIGHTPANDA_PAT`, `LIMRUN_API_KEY`, `LIM_API_KEY`, `LT_ACCESS_KEY`, `MOLI_PAT`, `NOTTE_API_KEY`, `REVYL_API_KEY`, and `SMOL_CLOUD_TOKEN`, in the environment of the run | The variable |
 | A [subscription login](/subscriptions) the run sends | `<provider>.access-token`, `<provider>.refresh-token` |
 | The login `codex()` finds in `auth.json` under the agent's `CODEX_HOME`, or `.codex` in its home | `codex.api-key`, `codex.id-token`, `codex.access-token`, `codex.refresh-token` |
 | The API key in an explicit `DEFAULT_AUTH_REQUEST` that `codex()` sends to its adapter | `codex.api-key` |

@@ -783,7 +783,8 @@ trees, on both platforms, without a device.
   - Provider keys are a class of their own in the ledger
     (`registerProviderKey` in `run/secrecy.ts`): the closed list of model
     provider variables there, subscription tokens, a coding agent's saved
-    login, and what an executor registers through `e2e/agent`. Every ledger
+    login, the token of each hosted service under `docs/integrations/`, and
+    what an executor registers through `e2e/agent`. Every ledger
     redacts them from what the run writes and from model input, whole
     values only, text downloads included (an app can be given one). They
     never enter a ledger's own entries (so no saved session carries one), and never

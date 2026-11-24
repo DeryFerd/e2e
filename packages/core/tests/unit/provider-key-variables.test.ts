@@ -61,6 +61,26 @@ describe('the provider key variables the run redacts', () => {
     expect(processSecrets.redact(key)).toBe(`<secret:${name}>`);
   });
 
+  it.each([
+    'BROWSERSTACK_ACCESS_KEY',
+    'CLOUDFLARE_API_TOKEN',
+    'E2B_API_KEY',
+    'EXPO_TOKEN',
+    'KERNEL_API_KEY',
+    'LIGHTPANDA_PAT',
+    'LIMRUN_API_KEY',
+    'LIM_API_KEY',
+    'LT_ACCESS_KEY',
+    'MOLI_PAT',
+    'NOTTE_API_KEY',
+    'REVYL_API_KEY',
+    'SMOL_CLOUD_TOKEN',
+  ])('redacts the key in %s, which a hosted integration signs in with', (name) => {
+    const key = `key-for-${name.toLowerCase()}-0123456789`;
+    registerProviderKeys({ [name]: key });
+    expect(processSecrets.redact(key)).toBe(`<secret:${name}>`);
+  });
+
   it.each([...NOT_KEYS])('leaves %s alone', (name) => {
     const value = `value-of-${name.toLowerCase()}-0123456789`;
     registerProviderKeys({ [name]: value });
