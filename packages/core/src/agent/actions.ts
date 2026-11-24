@@ -308,7 +308,7 @@ export function describeAction(action: RecordableAction, redaction: NodeRedactio
           : `scroll ${action.direction} on ${where} until ${safe(action.text)} shows (${pages})`;
       }
       case 'navigate':
-        return `navigate to ${safe(action.url)}`;
+        return `navigate to ${safe(printableNavigation(action.url))}`;
       case 'back':
         return 'navigate back';
       case 'resize':
@@ -408,4 +408,20 @@ function describeForSummary(target: TraceTargetDescriptor | undefined): string {
 
 function quote(value: string): string {
   return JSON.stringify(bound(value, 40));
+}
+
+/**
+ * A navigation as a step label: without userinfo, query, or fragment, any of
+ * which may carry a credential the ledger has no entry for, since an inline
+ * `user:password@host` or a magic-link token is not a configured secret. A
+ * relative reference keeps the path it resolves against.
+ */
+function printableNavigation(url: string): string {
+  try {
+    const parsed = new URL(url);
+    return `${parsed.origin}${parsed.pathname}`;
+  } catch {
+    const cut = url.search(/[?#]/);
+    return cut === -1 ? url : url.slice(0, cut);
+  }
 }
