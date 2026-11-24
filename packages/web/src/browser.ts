@@ -477,7 +477,11 @@ async function collectDownloads(
       const files: DownloadedFile[] = [];
       for (const download of started) {
         const suggestedFilename = download.suggestedFilename();
-        const { relative, absolute } = surface.artifactPath('downloads', suggestedFilename, '');
+        // The app chose this name, so the artifact takes a generated one and the suggestion
+        // travels beside it in `suggestedFilename`: a name is not evidence, and it may spell a
+        // value the run knows as a secret, which no later redaction could undo once it is a path.
+        const extension = /(\.[A-Za-z0-9]{1,16})$/.exec(suggestedFilename)?.[1] ?? '';
+        const { relative, absolute } = surface.artifactPath('downloads', undefined, extension);
         if (remote === undefined) await saveLocally(download, absolute, surface.unservedDownloads());
         else await saveFromBrowser(download, remote, absolute, currentOperation.signal);
         if (currentOperation.signal.aborted) throw timedOut();

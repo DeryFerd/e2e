@@ -114,7 +114,10 @@ describe.each<BrowserProviderScope>(['worker', 'attempt'])('downloads through a 
       expect(path.isAbsolute(file.absolutePath)).toBe(true);
       expect(file.absolutePath).toBe(path.join(artifactsDir, file.path));
       expect(readFileSync(file.absolutePath, 'utf8')).toBe(`report body ${index}`);
-      expect(file.path).toMatch(/^downloads\/\d{3}-report-\d\.txt$/);
+      // The artifact is named by the harness, not by the page: the suggested name is evidence about
+    // the download, and a name that spelled a secret would otherwise become a path on disk.
+    expect(file.path).toMatch(/^downloads\/\d{3}\.txt$/);
+    expect(file.path).not.toContain('report');
     }
     expect(attached).toEqual(files.map(file => file.path));
     expect(reads).toHaveLength(count);
