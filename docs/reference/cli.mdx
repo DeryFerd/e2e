@@ -386,6 +386,10 @@ bunx e2e init my-app --example with-expo
 - An MCP config file reached through a symlink, or under a linked directory,
   is skipped with the same warning and left unchanged, so the server is not
   registered there. A plain config is merged as usual.
+- A scaffold file (`package.json`, `e2e.config.ts`, a test) whose path is a
+  symlink, or that sits under a linked directory such as a `tests/` folder
+  pointing elsewhere, is skipped with the same warning and left unchanged, so
+  nothing is written outside the project.
 
 #### `e2e login`
 

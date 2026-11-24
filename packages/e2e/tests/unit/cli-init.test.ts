@@ -1875,6 +1875,19 @@ export default {
       }
     });
 
+    // A junction needs no symlink privilege on Windows.
+    it.skipIf(!symlinks && process.platform !== 'win32')('writes no scaffold file through a symlinked tests folder', async () => {
+      const elsewhere = mkdtempSync(path.join(os.tmpdir(), 'e2e-init-elsewhere-'));
+      try {
+        symlinkSync(elsewhere, path.join(dir, 'tests'), process.platform === 'win32' ? 'junction' : 'dir');
+        expect(await init(dir, { yes: true })).toMatchObject({ exitCode: 0 });
+        expect(readdirSync(elsewhere)).toEqual([]);
+        expect(output()).toMatch(/Symlink, not touching: tests -> .+ \(tests\/[^)]+\.e2e\.ts\)/);
+      } finally {
+        rmSync(elsewhere, { recursive: true, force: true });
+      }
+    });
+
     it('warns that a subscription gateway has no key to give CI', async () => {
       await init(dir, { yes: true, gateway: 'chatgpt', ci: 'github-actions' });
       expect(read(workflow)).not.toContain('env:');

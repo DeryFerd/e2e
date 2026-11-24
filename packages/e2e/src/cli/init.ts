@@ -472,6 +472,17 @@ export async function init(root: string, options: InitOptions = {}): Promise<Ini
     ...newTests.map((test) => ({ ...test, existing: false })),
   ];
 
+  // Nothing is written through a symlink: a linked tests folder or manifest could put the scaffold
+  // outside the project. A link on the way is reported and the file is left alone, as for the CI file.
+  const linkedFiles = files.flatMap((file) => {
+    const link = linkOnPath(cwd, path.join(cwd, file.relative));
+    return link === undefined ? [] : [{ link, file }];
+  });
+  for (const { link, file } of linkedFiles) {
+    clack.log.warn(`Symlink, not touching: ${link.relative} -> ${link.target} (${file.relative.split(path.sep).join('/')})`);
+  }
+  const writes = linkedFiles.length === 0 ? files : files.filter((file) => !linkedFiles.some((linked) => linked.file === file));
+
   if (
     example === undefined && files.length === 0 && skillInstalls.length === 0 && mcpRegistrations.length === 0 && missingIgnore.length === 0
     && instructions.writes.length === 0 && !writesCi
@@ -483,7 +494,7 @@ export async function init(root: string, options: InitOptions = {}): Promise<Ini
   if (!options.yes) {
     const actions = [
       ...(example === undefined ? [] : [`Keep the ${example.id} example in ${options.directory ?? 'this directory'} (cancelling removes it)`]),
-      ...files.map((file) => `${file.existing ? 'Update' : 'Create'} ${file.relative}`),
+      ...writes.map((file) => `${file.existing ? 'Update' : 'Create'} ${file.relative}`),
       ...skillInstalls.map((install) => install.kind === 'link'
         ? `Link ${install.relative} -> ${install.target}${linkReplaces(install, 'replacing')}`
         : `${install.links.length > 0 ? 'Replace' : install.existing ? 'Update' : 'Create'} ${install.relative}/`),
@@ -504,7 +515,7 @@ export async function init(root: string, options: InitOptions = {}): Promise<Ini
 
   // The first write; a directory named on the command line comes into being here.
   mkdirSync(cwd, { recursive: true });
-  for (const file of files) {
+  for (const file of writes) {
     const absolute = path.join(cwd, file.relative);
     mkdirSync(path.dirname(absolute), { recursive: true });
     writeFileSync(absolute, file.content, 'utf8');
