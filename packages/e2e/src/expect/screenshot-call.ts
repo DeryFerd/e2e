@@ -23,8 +23,14 @@ export interface ScreenshotCall {
 const OPTION_KEYS = ['threshold', 'maxDiffPixels', 'maxDiffPixelRatio', 'mask', 'maskColor', 'timeout'] as const;
 const DEFAULT_THRESHOLD = 0.2;
 const DEFAULT_MASK_COLOR: readonly [number, number, number] = [255, 0, 255];
-/** Characters a stored screenshot's name may not hold: path separators, controls, and what Windows refuses in a file name. */
+/** Characters a stored screenshot's name may not hold: path separators and controls. */
 const UNSAFE_NAME = /[\\/<>:"|?*\p{Cc}]/u;
+/**
+ * The device names Windows reserves at every directory level, with or without an
+ * extension: `NUL` and `NUL.png` are both the null device, so the write would
+ * disappear and the comparison would read a file that never existed.
+ */
+const RESERVED_DEVICE_NAME = /^(?:CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])$/i;
 /**
  * UTF-8 bytes a name may take. A file name holds 255 bytes on every common
  * file system; the target and system suffix, an attachment's `-expected`,
@@ -81,6 +87,10 @@ function namedStem(api: string, name: string): string {
   const stem = name.toLowerCase().endsWith('.png') ? name.slice(0, -'.png'.length) : name;
   if (stem.trim() === '' || stem === '.' || stem === '..' || UNSAFE_NAME.test(stem)) {
     throw new TestError('INVALID_ARGUMENT', `${api} name must be a file name with no path separators, got ${JSON.stringify(name)}`);
+  }
+  // Windows reads the part before the first dot as the device, so `NUL.png` is reserved too.
+  if (RESERVED_DEVICE_NAME.test(stem.split('.')[0] ?? '')) {
+    throw new TestError('INVALID_ARGUMENT', `${api} name must be a file name, and ${JSON.stringify(name)} is reserved on Windows`);
   }
   if (Buffer.byteLength(stem) > MAX_NAME_BYTES) {
     throw new TestError('INVALID_ARGUMENT', `${api} name must take at most ${MAX_NAME_BYTES} bytes, got ${Buffer.byteLength(stem)}`);

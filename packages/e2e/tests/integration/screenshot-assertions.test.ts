@@ -635,6 +635,8 @@ test('frame', async ({ app, gadget }) => {
     ['a mask that is not a locator', `'home', { mask: ['#clock'] }`, 'mask must be an array of locators'],
     ['a mask color that is not #rrggbb', `'home', { maskColor: 'red' }`, 'maskColor must be a color written #rrggbb'],
     ['a name too long for a file name', `'${'あ'.repeat(60)}'`, 'at most 150 bytes'],
+    ['a name Windows reserves', `'NUL'`, 'is reserved on Windows'],
+    ['a reserved name in another case, with no suffix', `'com1'`, 'is reserved on Windows'],
   ])('refuses %s before it reads the screen', async (_label, args, message) => {
     const { fake, asked } = screenEngine(() => screenPng(WHITE, BLUE));
     const test = `import { test, expect } from 'e2e';
