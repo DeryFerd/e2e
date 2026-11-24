@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { promisify } from 'node:util';
+import { assertSessionsEnded } from '@e2e-dev/mobile/lease';
 import type { DriverBinding, DriverRequest } from './driver.ts';
 
 const exec = promisify(execFile);
@@ -69,6 +70,14 @@ export async function startDriver(request: DriverRequest, env: NodeJS.ProcessEnv
   });
 }
 
+/**
+ * Stops the daemon and throws unless it reports every session ended, with the
+ * same rule `@e2e-dev/mobile/lease` applies: a forced stop, or one whose
+ * shutdown report is missing, leaves a session that may still be running and
+ * billed. Limrun holds no agent-device lease of its own, so the report has no
+ * lease to list.
+ */
 export async function stopDriver(stateDir: string, env: NodeJS.ProcessEnv, signal: AbortSignal): Promise<void> {
-  await exec(process.execPath, [installation().bin, 'daemon', 'stop', '--state-dir', stateDir, '--clean', '--json'], { env, signal });
+  const { stdout } = await exec(process.execPath, [installation().bin, 'daemon', 'stop', '--state-dir', stateDir, '--clean', '--json'], { env, signal });
+  assertSessionsEnded(stdout, undefined, 'Limrun');
 }

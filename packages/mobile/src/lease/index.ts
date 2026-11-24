@@ -15,6 +15,7 @@ import { startDriver, stopDriver } from './daemon.ts';
 import { LEASE_TTL_MS, startHeartbeat } from './heartbeat.ts';
 
 export { agentDevicePlugin, type AgentDevicePlugin } from './plugin.ts';
+export { assertSessionsEnded } from './daemon.ts';
 
 type ProviderSelector = Extract<keyof DeviceClientConfig, `provider${string}`>;
 

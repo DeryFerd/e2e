@@ -763,6 +763,13 @@ from `@e2e-dev/testmu` works this way for [TestMu AI](/integrations/testmu),
 [BrowserStack](/integrations/browserstack), and `revyl()` from
 `@e2e-dev/revyl` for [Revyl](/integrations/revyl).
 
+A cloud that runs its own daemon command instead of `agentDeviceLeases()` can
+apply the same release rule with `assertSessionsEnded(stdout, leaseId, label)`
+from the same subpath: it throws unless the `daemon stop --json` report says
+every session ended, so a forced stop or a missing report fails the release
+instead of reporting a clean one. `limrun()` from `@e2e-dev/limrun` stops its
+daemon this way.
+
 When the cloud needs an agent-device provider plugin, depend on it and pass
 `agentDevicePlugin(import.meta.resolve('@agent-device/<plugin>'))`: call its
 `assertVersion(request.agentDeviceVersion)` in `acquire`, and pass its
