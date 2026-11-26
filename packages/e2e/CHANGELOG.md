@@ -1,5 +1,21 @@
 # e2e
 
+## 0.25.1
+
+### Patch Changes
+
+- [#2271](https://github.com/e2e-inc/e2e/pull/2271) [`6114483`](https://github.com/e2e-inc/e2e/commit/61144839bbb1b5942c5b76b0a355e44a1086e7c2) Thanks [@okwasniewski](https://github.com/okwasniewski)! - A worker that finishes its test after an interrupt now gets the full shutdown budget to close its browser or device. Before, it was killed when the interrupt budget ran out, even mid cleanup.
+
+- [#2266](https://github.com/e2e-inc/e2e/pull/2266) [`2f6dcb0`](https://github.com/e2e-inc/e2e/commit/2f6dcb0d64f57dd91a9b3d39a47aed137e9816c4) Thanks [@okwasniewski](https://github.com/okwasniewski)! - The live window keeps showing a running step after another step inside it or beside it ends. An `agent.act` whose `onAction` hook took a screenshot used to lose its calls and its Thinking or Acting row for the rest of the act. A step that a timed-out attempt starts while its retry runs no longer replaces the retry's step in the window.
+
+- [#2267](https://github.com/e2e-inc/e2e/pull/2267) [`0eee683`](https://github.com/e2e-inc/e2e/commit/0eee6831e4dcc2e3cd9f7a21b298058ec959dbd0) Thanks [@okwasniewski](https://github.com/okwasniewski)! - A token refresh that finishes after `e2e login` or `e2e logout` no longer writes the old login's renewed tokens back over the new login, or back after the logout.
+
+- [#2279](https://github.com/e2e-inc/e2e/pull/2279) [`21a7ef5`](https://github.com/e2e-inc/e2e/commit/21a7ef50c584552f0d463d55031928fa0015e252) Thanks [@okwasniewski](https://github.com/okwasniewski)! - Fix a cached agent step re-recording its flow when the replay ended in a scroll, the recorded end state did not show, and the model fixed it by scrolling further the same way. The entry is now evicted, as for any other repair after the replay ran in full.
+
+- [#2275](https://github.com/e2e-inc/e2e/pull/2275) [`b7201fc`](https://github.com/e2e-inc/e2e/commit/b7201fc9e3cf41c2011e246e344f610d30d34557) Thanks [@okwasniewski](https://github.com/okwasniewski)! - `e2e run --watch --timings <file>` no longer reruns itself in a loop when the timings file sits inside a watched directory: the watcher now ignores the file the run writes, like the output and cache directories.
+- Updated dependencies [[`6b24fe7`](https://github.com/e2e-inc/e2e/commit/6b24fe7174eb1c0e8c04ea9fe10ab451e37d9b55), [`a27c6af`](https://github.com/e2e-inc/e2e/commit/a27c6af089915bbc1791acb0f038fe6a9d02e622), [`21a7ef5`](https://github.com/e2e-inc/e2e/commit/21a7ef50c584552f0d463d55031928fa0015e252)]:
+  - @e2e-dev/core@0.25.1
+
 ## 0.25.0
 
 ### Minor Changes

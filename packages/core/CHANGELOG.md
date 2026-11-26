@@ -1,5 +1,15 @@
 # @e2e-dev/core
 
+## 0.25.1
+
+### Patch Changes
+
+- [#2274](https://github.com/e2e-inc/e2e/pull/2274) [`6b24fe7`](https://github.com/e2e-inc/e2e/commit/6b24fe7174eb1c0e8c04ea9fe10ab451e37d9b55) Thanks [@okwasniewski](https://github.com/okwasniewski)! - A screenshot that an engine server returns as bytes after its attempt ended is no longer written into the next attempt's artifact directory, and bytes that arrive while the attempt is ending are no longer written into its own. The call fails with `INVALID_STATE` instead.
+
+- [#2265](https://github.com/e2e-inc/e2e/pull/2265) [`a27c6af`](https://github.com/e2e-inc/e2e/commit/a27c6af089915bbc1791acb0f038fe6a9d02e622) Thanks [@okwasniewski](https://github.com/okwasniewski)! - With `cache.strict`, a failed read of the cache directory (for example `EMFILE`) no longer turns off the check for steps recorded under another cache key for the rest of the worker. The next cache miss reads the directory again, so a stale recording fails with `REPLAY_STALE` instead of running the step live.
+
+- [#2279](https://github.com/e2e-inc/e2e/pull/2279) [`21a7ef5`](https://github.com/e2e-inc/e2e/commit/21a7ef50c584552f0d463d55031928fa0015e252) Thanks [@okwasniewski](https://github.com/okwasniewski)! - Fix a cached agent step re-recording its flow when the replay ended in a scroll, the recorded end state did not show, and the model fixed it by scrolling further the same way. The entry is now evicted, as for any other repair after the replay ran in full.
+
 ## 0.25.0
 
 ### Minor Changes
